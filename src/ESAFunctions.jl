@@ -1,35 +1,26 @@
 module ESAFunctions
 
+# Import dependencies =========================================================
 import DataFrames, CategoricalArrays
 import SQLite, DBInterface, HDF5
 import PlotlyJS
 import JuMP
-import Random
+import Random, Distributions
 
-# parameter processing functions
-export extractDBTable, gp, showjo
-# visualization functions
-export plotTimeseries, plotHistogram, plotContour, plotHeatmap, plotVolume, sliceVolume
-# Custom I/O
-export savedat, loaddat, loadalldat, save_dbtable, load_dbtable, list_dbtable, simpletxtwrite
-# Others
-export sigmoid, clippy
-# potentially obsolete functions
-export createDummyDF, generateDailyPattern
+# Declare export ==============================================================
+# Functions related to the CommOpt model (to be relocated)
+export gp, showjo, extractDBTable
+# Visualization functions
+export plottimeseries, plothistogram, plotcontour, plotheatmap, plotvolume, plotslicevolumn
+# Data interface functions
+export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, writetxt
+# Profile modification functions
+export generatedailypattern, generatepoissonseries, synthesizeprofile
+# Miscellaneous functions
+export clippy, createdummydata
+# Pending retirement
 
-"""
-Extract a table from a database `db` into a DataFrame
-"""
-function extractDBTable(db, tableName::String, symbolColumn::Vector{Int}=Int[])
-    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
-    if !isempty(symbolColumn)
-        for i ∈ symbolColumn
-            df[!, i] = Symbol.(df[!, i])
-        end
-    end
-    return df
-end
-
+# Functions related to the CommOpt model ======================================
 """
 Select a scalar parameter value from a DataFrame
 """
@@ -46,7 +37,7 @@ function gp(df::DataFrames.DataFrame, selcol::Symbol, filter::Vector)
         return df[index, selcol][1]
     end
 end
-### Alternative dispatches of `gp`
+# Dispatches of `gp`
 function gp(df::DataFrames.DataFrame, selcol::Symbol, filter::Symbol)
     return gp(df, selcol, [filter])
 end
@@ -77,9 +68,23 @@ function showjo(obj::JuMP.Containers.DenseAxisArray; namedim1::Symbol=:dim1)
 end
 
 """
+Extract a table from a database `db` into a DataFrame
+"""
+function extractDBTable(db, tableName::String, symbolColumn::Vector{Int}=Int[])
+    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
+    if !isempty(symbolColumn)
+        for i ∈ symbolColumn
+            df[!, i] = Symbol.(df[!, i])
+        end
+    end
+    return df
+end
+
+# Visualization functions =====================================================
+"""
 Plot timeseries from `dt`, a dictionary mapping between symbols and respective arrays
 """
-function plotTimeseries(dt::Dict; xlab::String="Timesteps", ylab::String="Power (kW)")
+function plottimeseries(dt::Dict; xlab::String="Timesteps", ylab::String="Power (kW)")
     # Process data
     df = DataFrames.DataFrame()
     for iLine ∈ keys(dt)
@@ -108,12 +113,12 @@ function plotTimeseries(dt::Dict; xlab::String="Timesteps", ylab::String="Power 
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
 end
-plotTimeseries(dt::Vector; xlab::String="Timesteps", ylab::String="Power (kW)") = plotTimeseries(Dict(:data => dt); xlab=xlab, ylab=ylab)
+plottimeseries(dt::Vector; xlab::String="Timesteps", ylab::String="Power (kW)") = plottimeseries(Dict(:data => dt); xlab=xlab, ylab=ylab)
 
 """
 Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
 """
-function plotHistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
+function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
     # Process data
     df = DataFrames.DataFrame()
     for iLine ∈ keys(dt)
@@ -144,12 +149,12 @@ function plotHistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
 end
-plotHistogram(dt::Vector; xlab::String="Value", ylab::String="Count") = plotHistogram(Dict(:data => dt); xlab=xlab, ylab=ylab)
+plothistogram(dt::Vector; xlab::String="Value", ylab::String="Count") = plothistogram(Dict(:data => dt); xlab=xlab, ylab=ylab)
 
 """
 A custom contour plot
 """
-function plotContour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
+function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
     trace = PlotlyJS.contour(
         x=X, y=Y, z=Z, zmin=zmin, zmax=zmax,
         contours=PlotlyJS.attr(
@@ -171,7 +176,7 @@ end
 """
 A custom heatmap plot
 """
-function plotHeatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
+function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
     trace = PlotlyJS.heatmap(
         x=X, y=Y, z=Z, zmin=zmin, zmax=zmax
     )
@@ -189,7 +194,7 @@ end
 """
 A custom volume plot
 """
-function plotVolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=nothing, isomin=nothing, isomax=nothing, surface_count=10)
+function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=nothing, isomin=nothing, isomax=nothing, surface_count=10)
     trace = PlotlyJS.volume(
         x=X[:], y=Y[:], z=Z[:], value=V[:],
         isomin=isomin, isomax=isomax,
@@ -222,21 +227,23 @@ end
 """
 Slice a volume at a specific value of one of the dimension
 """
-function sliceVolume(X, Y, sliceDim::Int, slicePoint)
+function plotslicevolumn(X, Y, sliceDim::Int, slicePoint)
     indexlist = findall(X[:, sliceDim] .== slicePoint)
     if sliceDim == 1
-        return plotContour(X[indexlist, 2], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 2", ylab="Dim 3")
+        return plotcontour(X[indexlist, 2], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 2", ylab="Dim 3")
     elseif sliceDim == 2
-        return plotContour(X[indexlist, 1], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 3")
+        return plotcontour(X[indexlist, 1], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 3")
     else
-        return plotContour(X[indexlist, 1], X[indexlist, 2], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 2")
+        return plotcontour(X[indexlist, 1], X[indexlist, 2], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 2")
     end
 end
+
+# Data interface functions ====================================================
 
 """
 Generic save function of a dataframe into a H5 file
 """
-function savedat(filename::String, objectname::String, df::DataFrames.DataFrame; indexcols=[])
+function save_dftoh5(filename::String, objectname::String, df::DataFrames.DataFrame; indexcols=[])
     # Establish connection and create group
     fid = HDF5.h5open(filename, "cw")
     objectname ∈ HDF5.keys(fid) && HDF5.delete_object(fid, objectname)
@@ -271,7 +278,7 @@ end
 """
 Generic load function of a dataframe from a H5 file
 """
-function loaddat(filename::String, objectname::String; caindices=true)
+function load_h5todf(filename::String, objectname::String; caindices=true)
     fid = HDF5.h5open(filename, "r")
     gid = fid[objectname]
     # reconstruct the dataframe
@@ -299,34 +306,34 @@ end
 """
 Load all dataframes from a hdf5 file
 """
-function loadalldat(filename::String; caindices=true)
+function loadall_h5todf(filename::String; caindices=true)
     fid = HDF5.h5open(filename, "r")
     listallobject = HDF5.keys(fid)
     HDF5.close(fid)
     data = Dict{String, DataFrames.DataFrame}()
     for objname ∈ listallobject
-        df = loaddat(filename, objname, caindices=caindices)
+        df = load_h5todf(filename, objname, caindices=caindices)
         data[objname] = df
     end
     return data
 end
 
 """
-Load a table from a SQLite database
-"""
-function load_dbtable(dbpath::String, tableName::String)
-    db = SQLite.DB(dbpath)
-    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
-    return df
-end
-
-"""
 Save a table to a SQLite database
 """
-function save_dbtable(dbpath::String, tableName::String, df::DataFrames.DataFrame)
+function save_dftodb(dbpath::String, tableName::String, df::DataFrames.DataFrame)
     db = SQLite.DB(dbpath)
     SQLite.drop!(db, tableName)
     SQLite.load!(df, db, tableName)
+end
+
+"""
+Load a table from a SQLite database
+"""
+function load_dbtodf(dbpath::String, tableName::String)
+    db = SQLite.DB(dbpath)
+    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
+    return df
 end
 
 """
@@ -337,27 +344,83 @@ list_dbtable(dbpath) = [x.name for x ∈ SQLite.tables(SQLite.DB(dbpath))]
 """
 Simple write to a text file. The file is reset when `text` is empty.
 """
-function simpletxtwrite(filename::String, text::String)
+function writetxt(filename::String, text::String)
+    io = open(filename, "a")
     if length(text) == 0
-        io = open(filename, "w")
         write(io, "")
     else
-        io = open(filename, "a")
         write(io, text * '\n')
     end
     close(io)
 end
 
-# Others ----
-sigmoid(x) = @. 1 / (1 + exp(-x))
-clippy(df) = Main.clipboard(sprint(show, "text/tab-separated-values", df))
+# Profile modification functions ==============================================
 
-# Potentially obsolete ----
+"""
+Generate a daily sinusoidal pattern
+"""
+function generatedailypattern(cycle, offset, dT; bfullwave::Bool=false)
+    pattern = -cos.(range(0, cycle*2*pi, length=Int(24/dT)) .+ offset)
+    if !bfullwave
+        pattern[findall(pattern .< 0)] .= 0
+    end
+    return pattern
+end
+
+"""
+Generate a random Poisson serie with a mean of `λ` whose sum equals to `n`
+"""
+function generatepoissonseries(n::Int, λ::Int)
+    dist = Distributions.Poisson(λ)
+    series = rand(dist, n ÷ λ)
+    while sum(series) != n
+        if sum(series) < n
+            push!(series, rand(dist))
+        else
+            diff = n - sum(series[1:(end-1)])
+            if diff > 0
+                series[end] = diff
+            else
+                pop!(series)
+            end
+        end
+    end
+    return series
+end
+
+"""
+Given an average profile, synthesize a disaggregate profile by grouping neighboring values
+"""
+function synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float64=0.1, base_fix::Float64=0.0)
+    nts = length(avgprofile)
+    # Shift avgprofile
+    moveindex = rand(1:nts)
+    avgprofile = circshift(avgprofile, moveindex)
+    # Generate random sequence
+    randomseries = generatepoissonseries(nts, λ)
+    deleteat!(randomseries, findall(==(0), randomseries))
+    # Synthesize a profile
+    synprofile = min.(base_rel * avgprofile .+ base_fix, avgprofile)
+    comp_rest = avgprofile .- synprofile
+    ind_first = 1
+    for interval ∈ randomseries
+        ind_last = ind_first + interval - 1
+        synprofile[ind_first + (interval ÷ 2)] += sum(comp_rest[ind_first:ind_last])
+        ind_first += interval
+    end
+    # Shift back synprofile
+    circshift!(synprofile, -moveindex)
+    return synprofile
+end
+
+# Miscellaneous functions =====================================================
+
+clippy(df) = Main.clipboard(sprint(show, "text/tab-separated-values", df))
 
 """
 Create a dummy dataframe with [:year, :ts, :region, :variable, :value]
 """
-function createDummyDF(nY, nTS, nRegion, nVariable; ascategoricalarray::Bool=false)
+function createdummydata(nY, nTS, nRegion, nVariable; ascategoricalarray::Bool=false)
     sY = 2025 .+ collect(1:nY)
     sTS = collect(1:nTS)
     sRegion = [Random.randstring(8) for i ∈ 1:nRegion]
@@ -381,15 +444,6 @@ function createDummyDF(nY, nTS, nRegion, nVariable; ascategoricalarray::Bool=fal
     return df
 end
 
-"""
-Generate a daily sinusoidal pattern
-"""
-function generateDailyPattern(cycle, offset, dT; bFullwave::Bool=false)
-    pattern = -cos.(range(0, cycle*2*pi, length=Int(24/dT)) .+ offset)
-    if !bFullwave
-        pattern[findall(pattern .< 0)] .= 0
-    end
-    return pattern
-end
+# Pending retirement ==========================================================
 
 end
