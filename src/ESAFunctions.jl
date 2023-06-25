@@ -82,38 +82,42 @@ end
 
 # Visualization functions =====================================================
 """
-Plot timeseries from `dt`, a dictionary mapping between symbols and respective arrays
+Plot timeseries from a dataframe `df` containing columns [:time, :variable, :value]
 """
-function plottimeseries(dt::Dict; xlab::String="Timesteps", ylab::String="Power (kW)")
-    # Process data
-    df = DataFrames.DataFrame()
-    for iLine ∈ keys(dt)
-        if dt[iLine] isa Matrix{<: Number}
-            DataFrames.insertcols!(df, iLine => sum(dt[iLine], dims=1)[:])
-        elseif dt[iLine] isa Vector{<: Number}
-            DataFrames.insertcols!(df, iLine => dt[iLine])
-        else break
-        end
-    end
-    # Plot
+function plottimeseries(df::DataFrames.DataFrame;
+    xlab::String="Time", ylab::String="Power (kW)", title::Union{String, Missing}=missing,
+    col_time=:time, col_variable=:variable, col_value=:value,
+    bstack::Bool=false
+    )
+    # Plot settings
+    stackgroup = (bstack ? "one" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
-    for iLine ∈ names(df)
-        push!(pTraces, PlotlyJS.scatter(y=df[:, iLine], name=iLine, mode="lines"))
+    for gd ∈ DataFrames.groupby(df, col_variable)
+        push!(pTraces, PlotlyJS.scatter(x=gd[:, col_time], y=gd[:, col_value], name=gd[1, col_variable], mode="lines", stackgroup=stackgroup))
     end
+    # Do not show legends when there is only one trace
+    showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
         plot_bgcolor="rgba(255,255,255,0.10)", # Translucent plot BG
         paper_bgcolor="rgba(0,0,0,0.0)", # No paper BG
+        title=title,
         xaxis_title=xlab,
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
         yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
-        showlegend=true, legend=PlotlyJS.attr(orientation="h"),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
     )
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
 end
-plottimeseries(dt::Vector; xlab::String="Timesteps", ylab::String="Power (kW)") = plottimeseries(Dict(:data => dt); xlab=xlab, ylab=ylab)
+# Dispatches of `plottimeseries`
+function plottimeseries(dt::Dict; kwargs...)
+    df = DataFrames.DataFrame()
+    [df = vcat(df, DataFrames.DataFrame(:time => 1:length(dt[k]), :variable => k, :value => dt[k])) for k ∈ keys(dt)]
+    return plottimeseries(df; kwargs...)
+end
+plottimeseries(vt::Vector; kwargs...) = plottimeseries(df; kwargs...)
 
 """
 Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
@@ -428,14 +432,14 @@ function createdummydata(nY, nTS, nRegion, nVariable; ascategoricalarray::Bool=f
     if ascategoricalarray
         df = DataFrames.crossjoin(
             DataFrames.DataFrame(:year => sY),
-            DataFrames.DataFrame(:ts => sTS),
+            DataFrames.DataFrame(:time => sTS),
             DataFrames.DataFrame(:region => CategoricalArrays.categorical(sRegion)),
             DataFrames.DataFrame(:variable => CategoricalArrays.categorical(sVariable)),
         )
     else
         df = DataFrames.crossjoin(
             DataFrames.DataFrame(:year => sY),
-            DataFrames.DataFrame(:ts => sTS),
+            DataFrames.DataFrame(:time => sTS),
             DataFrames.DataFrame(:region => sRegion),
             DataFrames.DataFrame(:variable => sVariable),
         )
