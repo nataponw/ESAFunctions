@@ -3,7 +3,7 @@ module ESAFunctions
 # Import dependencies =========================================================
 import DataFrames, CategoricalArrays
 import SQLite, DBInterface, HDF5
-import PlotlyJS
+import PlotlyJS, Plots
 import JuMP
 import Random, Distributions
 
@@ -11,7 +11,7 @@ import Random, Distributions
 # Functions related to the CommOpt model (to be relocated)
 export gp, showjo, extractDBTable
 # Visualization functions
-export plottimeseries, plothistogram, plotcontour, plotheatmap, plotvolume, plotslicevolumn
+export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotslicevolumn, plotcluster
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, writetxt
 # Profile modification functions
@@ -87,13 +87,16 @@ Plot timeseries from a dataframe `df` containing columns [:time, :variable, :val
 function plottimeseries(df::DataFrames.DataFrame;
     xlab::String="Time", ylab::String="Power (kW)", title::Union{String, Missing}=missing,
     col_time=:time, col_variable=:variable, col_value=:value,
-    bstack::Bool=false
+    bstack::Bool=false, selectcolor=missing,
+    legendorientation="h",
     )
+    # Color palette
+    ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Plot settings
     stackgroup = (bstack ? "one" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     for gd ∈ DataFrames.groupby(df, col_variable)
-        push!(pTraces, PlotlyJS.scatter(x=gd[:, col_time], y=gd[:, col_value], name=gd[1, col_variable], mode="lines", stackgroup=stackgroup))
+        push!(pTraces, PlotlyJS.scatter(x=gd[:, col_time], y=gd[:, col_value], name=gd[1, col_variable], mode="lines", stackgroup=stackgroup, line=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
     end
     # Do not show legends when there is only one trace
     showlegend = length(pTraces) > 1
@@ -106,7 +109,7 @@ function plottimeseries(df::DataFrames.DataFrame;
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
         yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
-        showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation=legendorientation),
     )
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
@@ -117,13 +120,47 @@ function plottimeseries(dt::Dict; kwargs...)
     [df = vcat(df, DataFrames.DataFrame(:time => 1:length(dt[k]), :variable => k, :value => dt[k])) for k ∈ keys(dt)]
     return plottimeseries(df; kwargs...)
 end
-plottimeseries(vt::Vector; kwargs...) = plottimeseries(df; kwargs...)
+plottimeseries(vt::Vector; kwargs...) = plottimeseries(DataFrames.DataFrame(:time => 1:length(vt), :variable => "", :value => vt); kwargs...)
+
+"""
+Plot bar chart from a dataframe `df` containing columns [:axis, :variable, :value]
+"""
+function plotbar(df::DataFrames.DataFrame;
+    xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing,
+    col_axis=:axis, col_variable=:variable, col_value=:value,
+    bstack::Bool=false, selectcolor=missing,
+    legendorientation="h",
+    )
+    # Color palette
+    ismissing(selectcolor) && (selectcolor = (x -> missing))
+    # Plot settings
+    barmode = (bstack ? "stack" : missing)
+    pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
+    for gd ∈ DataFrames.groupby(df, col_variable)
+        push!(pTraces, PlotlyJS.bar(x=gd[:, col_axis], y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
+    end
+    # Do not show legends when there is only one trace
+    showlegend = length(pTraces) > 1
+    pLayout = PlotlyJS.Layout(
+        xaxis_rangeslider_visible=false,
+        plot_bgcolor="rgba(255,255,255,0.10)", # Translucent plot BG
+        paper_bgcolor="rgba(0,0,0,0.0)", # No paper BG
+        title=title,
+        xaxis_title=xlab,
+        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis_title=ylab,
+        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation=legendorientation),
+        barmode=barmode,
+    )
+    p = PlotlyJS.plot(pTraces, pLayout)
+    return p
+end
 
 """
 Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
 """
 function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
-    # Process data
     df = DataFrames.DataFrame()
     for iLine ∈ keys(dt)
         if dt[iLine] isa Matrix{<: Number}
@@ -133,7 +170,6 @@ function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
         else break
         end
     end
-    # Plot
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     lvlOpacity = (DataFrames.ncol(df) == 1 ? 1.00 : 0.60)
     for iLine ∈ names(df)
@@ -158,7 +194,7 @@ plothistogram(dt::Vector; xlab::String="Value", ylab::String="Count") = plothist
 """
 A custom contour plot
 """
-function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
+function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.contour(
         x=X, y=Y, z=Z, zmin=zmin, zmax=zmax,
         contours=PlotlyJS.attr(
@@ -173,14 +209,13 @@ function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
         showscale=false,
     )
     p = PlotlyJS.plot(trace, layout)
-    bsave && PlotlyJS.savefig(p, plotname, width=650, height=600, scale=2.0, format="png")
     return p
 end
 
 """
 A custom heatmap plot
 """
-function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing, bsave=false, plotname="test.png")
+function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.heatmap(
         x=X, y=Y, z=Z, zmin=zmin, zmax=zmax
     )
@@ -191,7 +226,6 @@ function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
         showscale=false,
     )
     p = PlotlyJS.plot(trace, layout)
-    bsave && PlotlyJS.savefig(p, plotname, width=650, height=600, scale=2.0, format="png")
     return p
 end
 
@@ -240,6 +274,26 @@ function plotslicevolumn(X, Y, sliceDim::Int, slicePoint)
     else
         return plotcontour(X[indexlist, 1], X[indexlist, 2], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 2")
     end
+end
+
+"""
+`data` is a matrix of observations in 2D or 3D coordinate. `label` is a vector of labels.
+"""
+function plotcluster(data::Matrix, label::Vector)
+    p = Plots.plot()
+    is3D = size(data)[1] == 3
+    if is3D
+        for l ∈ sort(unique(label))
+            idx = findall(==(l), label)
+            Plots.plot!(p, data[1, idx], data[2, idx], data[3, idx], seriestype=:scatter3d, label=string(l), opacity=0.75)
+        end
+    else
+        for l ∈ sort(unique(label))
+            idx = findall(==(l), label)
+            Plots.plot!(p, data[1, idx], data[2, idx], seriestype=:scatter, label=string(l), opacity=0.75)
+        end
+    end
+    return p
 end
 
 # Data interface functions ====================================================
