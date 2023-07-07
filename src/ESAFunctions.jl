@@ -4,12 +4,9 @@ module ESAFunctions
 import DataFrames, CategoricalArrays
 import SQLite, DBInterface, HDF5
 import PlotlyJS, Plots
-import JuMP
 import Random, Distributions
 
 # Declare export ==============================================================
-# Functions related to the CommOpt model (to be relocated)
-export gp, showjo, extractDBTable
 # Visualization functions
 export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotslicevolumn, plotcluster
 # Data interface functions
@@ -19,66 +16,6 @@ export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
 export clippy, createdummydata
 # Pending retirement
-
-# Functions related to the CommOpt model ======================================
-"""
-Select a scalar parameter value from a DataFrame
-"""
-function gp(df::DataFrames.DataFrame, selcol::Symbol, filter::Vector)
-    index = collect(1:size(df)[1])
-    for i in 1:length(filter)
-        if !ismissing(filter[i])
-            intersect!(index, findall(df[:, i] .== filter[i]))
-        end
-    end
-    if isempty(index)
-        return missing
-    else
-        return df[index, selcol][1]
-    end
-end
-# Dispatches of `gp`
-function gp(df::DataFrames.DataFrame, selcol::Symbol, filter::Symbol)
-    return gp(df, selcol, [filter])
-end
-function gp(df::DataFrames.DataFrame, selcol::Symbol, filter::Int64)
-    return gp(df, selcol, [filter])
-end
-
-"""
-show a JuMP DenseAxisArray as a DataFrame with appropriate axes
-"""
-function showjo(obj::JuMP.Containers.DenseAxisArray; namedim1::Symbol=:dim1)
-    # Check dimension
-    dim = length(obj.axes)
-    values = JuMP.value.(obj).data
-    if dim == 1
-        df = DataFrames.DataFrame(namedim1 => obj.axes[1], :value => values)
-    elseif dim == 2
-        if isa(obj.axes[2][1], Symbol)
-            df = DataFrames.DataFrame(values, obj.axes[2])
-        else
-            df = DataFrames.DataFrame(values, :auto)
-        end
-        DataFrames.insertcols!(df, 1, namedim1 => obj.axes[1])
-    else
-        println("Warning: the display of higher dimensions is not yet supported.")
-    end
-    return df
-end
-
-"""
-Extract a table from a database `db` into a DataFrame
-"""
-function extractDBTable(db, tableName::String, symbolColumn::Vector{Int}=Int[])
-    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
-    if !isempty(symbolColumn)
-        for i ∈ symbolColumn
-            df[!, i] = Symbol.(df[!, i])
-        end
-    end
-    return df
-end
 
 # Visualization functions =====================================================
 """
@@ -90,6 +27,8 @@ function plottimeseries(df::DataFrames.DataFrame;
     bstack::Bool=false, selectcolor=missing,
     legendorientation="h",
     )
+    # Handle when col_variable is missing.
+    col_variable ∉ propertynames(df) && df[!, col_variable] .= ""
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Plot settings
