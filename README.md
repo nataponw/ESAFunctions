@@ -1,3 +1,5 @@
 # ESAFunctions
 
-[![Build Status](https://github.com/nataponw/ESAFunctions.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/nataponw/ESAFunctions.jl/actions/workflows/CI.yml?query=branch%3Amain)
+Collection of common functions related to energy system analysis
+
+Complex analytics are stored in `ESAAnalytics` to reduce the loading latency

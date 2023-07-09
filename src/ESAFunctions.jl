@@ -8,18 +8,26 @@ import Random, Distributions
 
 # Declare export ==============================================================
 # Visualization functions
-export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotslicevolumn, plotcluster
+export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotcluster
 # Data interface functions
-export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, writetxt
+export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
-export generatedailypattern, generatepoissonseries, synthesizeprofile
+export synthesizedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
 export clippy, createdummydata
 # Pending retirement
 
 # Visualization functions =====================================================
 """
-Plot timeseries from a dataframe `df` containing columns [:time, :variable, :value]
+    plottimeseries(df::DataFrame; xlab, ylab, title, col_time, col_variable, col_value, bstack, selectcolor, legendorientation)
+
+Plot a line chart from `df` which contains columns `:time`, `:variable`, `:value`
+
+# Keyword Arguments
+- `col_time`, `col_variable`, `col_value` as `Symbol` : overwrite the default column names
+- `bstack` as `Bool` : stack the components
+- `selectcolor` : a function that returns a color given a variable name
+- `legendorientation` : "h" or "l"
 """
 function plottimeseries(df::DataFrames.DataFrame;
     xlab::String="Time", ylab::String="Power (kW)", title::Union{String, Missing}=missing,
@@ -54,15 +62,34 @@ function plottimeseries(df::DataFrames.DataFrame;
     return p
 end
 # Dispatches of `plottimeseries`
+"""
+    plottimeseries(dt::Dict; kwargs...)
+
+Format `dt::Dict{String, Vector{Real}}` into a `df` with a proper structure, then pass it to `plottimeseries`
+"""
 function plottimeseries(dt::Dict; kwargs...)
     df = DataFrames.DataFrame()
     [df = vcat(df, DataFrames.DataFrame(:time => 1:length(dt[k]), :variable => k, :value => dt[k])) for k ∈ keys(dt)]
     return plottimeseries(df; kwargs...)
 end
+
+"""
+    plottimeseries(vt::Vector; kwargs...)
+
+Format a single timeseries vector into a `df` with a proper structure, then pass it to `plottimeseries`
+"""
 plottimeseries(vt::Vector; kwargs...) = plottimeseries(DataFrames.DataFrame(:time => 1:length(vt), :variable => "", :value => vt); kwargs...)
 
 """
-Plot bar chart from a dataframe `df` containing columns [:axis, :variable, :value]
+    plotbar(df::DataFrame; xlab, ylab, title, col_axis, col_variable, col_value, bstack, selectcolor, legendorientation)
+
+Plot a bar chart from `df` which contains columns `:axis`, `:variable`, `:value`
+
+# Keyword Arguments
+- `col_axis`, `col_variable`, `col_value` as `Symbol` : overwrite the default column names
+- `bstack` as `Bool` : stack the components
+- `selectcolor` : a function that returns a color given a variable name
+- `legendorientation` : "h" or "l"
 """
 function plotbar(df::DataFrames.DataFrame;
     xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing,
@@ -97,7 +124,7 @@ function plotbar(df::DataFrames.DataFrame;
 end
 
 """
-Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
+(Pending upgrade) Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
 """
 function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
     df = DataFrames.DataFrame()
@@ -131,7 +158,7 @@ end
 plothistogram(dt::Vector; xlab::String="Value", ylab::String="Count") = plothistogram(Dict(:data => dt); xlab=xlab, ylab=ylab)
 
 """
-A custom contour plot
+(Pending upgrade) A custom contour plot
 """
 function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.contour(
@@ -152,7 +179,7 @@ function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
 end
 
 """
-A custom heatmap plot
+(Pending upgrade) A custom heatmap plot
 """
 function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.heatmap(
@@ -169,7 +196,7 @@ function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
 end
 
 """
-A custom volume plot
+(Pending upgrade) A custom volume plot
 """
 function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=nothing, isomin=nothing, isomax=nothing, surface_count=10)
     trace = PlotlyJS.volume(
@@ -202,21 +229,9 @@ function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=
 end
 
 """
-Slice a volume at a specific value of one of the dimension
-"""
-function plotslicevolumn(X, Y, sliceDim::Int, slicePoint)
-    indexlist = findall(X[:, sliceDim] .== slicePoint)
-    if sliceDim == 1
-        return plotcontour(X[indexlist, 2], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 2", ylab="Dim 3")
-    elseif sliceDim == 2
-        return plotcontour(X[indexlist, 1], X[indexlist, 3], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 3")
-    else
-        return plotcontour(X[indexlist, 1], X[indexlist, 2], Y[indexlist], title="Volume sliced at dim $(sliceDim) : $(slicePoint)", xlab="Dim 1", ylab="Dim 2")
-    end
-end
+    plotcluster(data::Matrix, label::Vector)
 
-"""
-`data` is a matrix of observations in 2D or 3D coordinate. `label` is a vector of labels.
+Plot 2D or 3D projected `data` with respective `label`
 """
 function plotcluster(data::Matrix, label::Vector)
     p = Plots.plot()
@@ -238,34 +253,26 @@ end
 # Data interface functions ====================================================
 
 """
-Generic save function of a dataframe into a H5 file
+    save_dftoh5(filename::String, objectname::String, df::DataFrame; col_value=:value)
+
+Save `df` as an object (folder) into a HDF5 file
+
+`df` must be in a long format with only one value column. In order to save memory, indexes are treated and stored as CategoricalArrays, i.e., with levels and levelcode.
 """
-function save_dftoh5(filename::String, objectname::String, df::DataFrames.DataFrame; indexcols=[])
+function save_dftoh5(filename::String, objectname::String, df::DataFrames.DataFrame; col_value=:value)
     # Establish connection and create group
     fid = HDF5.h5open(filename, "cw")
     objectname ∈ HDF5.keys(fid) && HDF5.delete_object(fid, objectname)
     gid = HDF5.create_group(fid, objectname)
-    # If `indexcols` is empty, then columns whose data are not Float are considered index columns
-    if isempty(indexcols)
-        for col ∈ DataFrames.propertynames(df)
-            if !(eltype(df[!, col]) .<: Union{Missing, Real})
-                push!(indexcols, col)
-            end
-        end
+    # Save index columns
+    indexcols = setdiff(DataFrames.propertynames(df), [col_value])
+    for col ∈ indexcols
+        tmpCol = CategoricalArrays.categorical(df[!, col], compress=true)
+        HDF5.write_dataset(gid, "idset_" * string(col), CategoricalArrays.levels(tmpCol))
+        HDF5.write_dataset(gid, "idlvl_" * string(col), CategoricalArrays.levelcode.(tmpCol))
     end
-    # Process each columns
-    for col ∈ DataFrames.propertynames(df)
-        if col ∈ indexcols
-            # First implementation: sequencially process and write each index columns
-            tmpCol = CategoricalArrays.categorical(df[!, col], compress=true)
-            HDF5.write_dataset(gid, "idset_" * string(col), CategoricalArrays.levels(tmpCol))
-            HDF5.write_dataset(gid, "idlvl_" * string(col), CategoricalArrays.levelcode.(tmpCol))
-            # Second implementation: first process all columns and then write them all at once <<TBD>>
-        else
-            # HDF5.write_dataset(gid, "value_" * string(col), Float32.(df[!, col]))
-            HDF5.write_dataset(gid, "value_" * string(col), df[!, col])
-        end
-    end
+    # Save the value column
+    HDF5.write_dataset(gid, "value_" * string(col_value), df[!, col_value])
     # Close connections
     HDF5.close(gid)
     HDF5.close(fid)
@@ -273,9 +280,13 @@ function save_dftoh5(filename::String, objectname::String, df::DataFrames.DataFr
 end
 
 """
-Generic load function of a dataframe from a H5 file
+    load_h5todf(filename::String, objectname::String)
+
+Load a saved `df` (folder) from a HDF5 file
+
+See also : [`reverse save_dftoh5`](@ref)
 """
-function load_h5todf(filename::String, objectname::String; caindices=true)
+function load_h5todf(filename::String, objectname::String)
     fid = HDF5.h5open(filename, "r")
     gid = fid[objectname]
     # reconstruct the dataframe
@@ -289,11 +300,7 @@ function load_h5todf(filename::String, objectname::String; caindices=true)
             idlvl = HDF5.read(gid, replace(colkey, "idset_" => "idlvl_"))
             colvalue = idset[idlvl]
             colsym = Symbol(replace(colkey, "idset_" => ""))
-            if caindices
-                DataFrames.insertcols!(df, colsym => CategoricalArrays.categorical(colvalue))
-            else
-                DataFrames.insertcols!(df, colsym => colvalue)
-            end
+            DataFrames.insertcols!(df, colsym => colvalue)
         end
     end
     HDF5.close(fid)
@@ -301,47 +308,59 @@ function load_h5todf(filename::String, objectname::String; caindices=true)
 end
 
 """
-Load all dataframes from a hdf5 file
+    loadall_h5todf(filename::String)
+
+Load all saved `df` (folder) from a HDF5 file
+
+See also : [`load_h5todf`](@ref)
 """
-function loadall_h5todf(filename::String; caindices=true)
+function loadall_h5todf(filename::String)
     fid = HDF5.h5open(filename, "r")
     listallobject = HDF5.keys(fid)
     HDF5.close(fid)
     data = Dict{String, DataFrames.DataFrame}()
     for objname ∈ listallobject
-        df = load_h5todf(filename, objname, caindices=caindices)
+        df = load_h5todf(filename, objname)
         data[objname] = df
     end
     return data
 end
 
 """
-Save a table to a SQLite database
+    save_dftodb(dbpath::String, tablename::String, df::DataFrame)
+
+Save `df` as a table in a SQLite database
 """
-function save_dftodb(dbpath::String, tableName::String, df::DataFrames.DataFrame)
+function save_dftodb(dbpath::String, tablename::String, df::DataFrames.DataFrame)
     db = SQLite.DB(dbpath)
-    SQLite.drop!(db, tableName)
-    SQLite.load!(df, db, tableName)
+    SQLite.drop!(db, tablename)
+    SQLite.load!(df, db, tablename)
 end
 
 """
-Load a table from a SQLite database
+    load_dbtodf(dbpath::String, tablename::String)
+
+Load a table from a SQLite database as DataFrame
 """
-function load_dbtodf(dbpath::String, tableName::String)
+function load_dbtodf(dbpath::String, tablename::String)
     db = SQLite.DB(dbpath)
-    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tableName)"))
+    df = DataFrames.DataFrame(DBInterface.execute(db, "SELECT * FROM ($tablename)"))
     return df
 end
 
 """
-List of tables in a SQLite database
+    list_dbtable(dbpath)
+
+List tables in a database
 """
 list_dbtable(dbpath) = [x.name for x ∈ SQLite.tables(SQLite.DB(dbpath))]
 
 """
-Simple write to a text file. The file is reset when `text` is empty.
+    appendtxt(filename::String, text::String)
+
+Append `text` a text file
 """
-function writetxt(filename::String, text::String)
+function appendtxt(filename::String, text::String)
     io = open(filename, "a")
     if length(text) == 0
         write(io, "")
@@ -354,10 +373,12 @@ end
 # Profile modification functions ==============================================
 
 """
-Generate a daily sinusoidal pattern
+    synthesizedailypattern(nCycle, angleoffset, ΔT; bfullwave::Bool)
+
+Synthesize a daily profile pattern using a minus cosine function
 """
-function generatedailypattern(cycle, offset, dT; bfullwave::Bool=false)
-    pattern = -cos.(range(0, cycle*2*pi, length=Int(24/dT)) .+ offset)
+function generatedailypattern(nCycle, angleoffset, ΔT; bfullwave::Bool=false)
+    pattern = -cos.(range(0, nCycle*2*pi, length=Int(24/ΔT)) .+ angleoffset)
     if !bfullwave
         pattern[findall(pattern .< 0)] .= 0
     end
@@ -365,6 +386,8 @@ function generatedailypattern(cycle, offset, dT; bfullwave::Bool=false)
 end
 
 """
+    generatepoissonseries(n::Int, λ::Int)
+
 Generate a random Poisson serie with a mean of `λ` whose sum equals to `n`
 """
 function generatepoissonseries(n::Int, λ::Int)
@@ -386,7 +409,17 @@ function generatepoissonseries(n::Int, λ::Int)
 end
 
 """
-Given an average profile, synthesize a disaggregate profile by grouping neighboring values
+    synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float64, base_fix::Float64)
+
+Synthesize a random profile from `avgprofile` by grouping neighboring values
+
+Neighbors are randomly chosen using a poissonseries whose mean is `λ`
+
+# Keyword Arguments
+- `base_rel` : base value as share of the `avgprofile`, default 0.1
+- `base_fix` : base value as a fixed quantity, default 0.0
+
+See also: [`generatepoissonseries`](@ref)
 """
 function synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float64=0.1, base_fix::Float64=0.0)
     nts = length(avgprofile)
@@ -412,32 +445,30 @@ end
 
 # Miscellaneous functions =====================================================
 
-clippy(df) = Main.clipboard(sprint(show, "text/tab-separated-values", df))
+"""
+    clippy(df::DataFrame)
+
+Copy `df` into system's clipboard
+"""
+clippy(df::DataFrames.DataFrame) = Main.clipboard(sprint(show, "text/tab-separated-values", df))
 
 """
-Create a dummy dataframe with [:year, :ts, :region, :variable, :value]
+    createdummydata(nYear, nTime, nRegion, nVariable)
+
+Create a dummy DataFrame with index columns `:year`, `:time`, `:region`, and `:variable`, and the value column `:value`
 """
-function createdummydata(nY, nTS, nRegion, nVariable; ascategoricalarray::Bool=false)
-    sY = 2025 .+ collect(1:nY)
-    sTS = collect(1:nTS)
-    sRegion = [Random.randstring(8) for i ∈ 1:nRegion]
-    sVariable = [Random.randstring(8) for i ∈ 1:nVariable]
-    if ascategoricalarray
-        df = DataFrames.crossjoin(
-            DataFrames.DataFrame(:year => sY),
-            DataFrames.DataFrame(:time => sTS),
-            DataFrames.DataFrame(:region => CategoricalArrays.categorical(sRegion)),
-            DataFrames.DataFrame(:variable => CategoricalArrays.categorical(sVariable)),
-        )
-    else
-        df = DataFrames.crossjoin(
-            DataFrames.DataFrame(:year => sY),
-            DataFrames.DataFrame(:time => sTS),
-            DataFrames.DataFrame(:region => sRegion),
-            DataFrames.DataFrame(:variable => sVariable),
-        )
-    end
-    DataFrames.insertcols!(df, :value => round.(1000*rand(DataFrames.nrow(df)), digits=6))
+function createdummydata(nYear, nTime, nRegion, nVariable)
+    sYear = 2025 .+ collect(1:nYear)
+    sTime = collect(1:nTime)
+    sRegion = [Random.randstring(8) for _ ∈ 1:nRegion]
+    sVariable = [Random.randstring(8) for _ ∈ 1:nVariable]
+    df = DataFrames.crossjoin(
+        DataFrames.DataFrame(:year => sYear),
+        DataFrames.DataFrame(:time => sTime),
+        DataFrames.DataFrame(:region => sRegion),
+        DataFrames.DataFrame(:variable => sVariable),
+    )
+    DataFrames.insertcols!(df, :value => round.(1000*rand(DataFrames.nrow(df)), digits=2))
     return df
 end
 
