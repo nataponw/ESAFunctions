@@ -36,7 +36,7 @@ function plottimeseries(df::DataFrames.DataFrame;
     legendorientation="h",
     )
     # Handle when col_variable is missing.
-    col_variable ∉ propertynames(df) && df[!, col_variable] .= ""
+    col_variable ∉ propertynames(df) && (df[!, col_variable] .= "")
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Plot settings
