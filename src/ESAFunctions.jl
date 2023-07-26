@@ -49,8 +49,8 @@ function plottimeseries(df::DataFrames.DataFrame;
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.10)", # Translucent plot BG
-        paper_bgcolor="rgba(0,0,0,0.0)", # No paper BG
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
         title=title,
         xaxis_title=xlab,
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
@@ -109,8 +109,8 @@ function plotbar(df::DataFrames.DataFrame;
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.10)", # Translucent plot BG
-        paper_bgcolor="rgba(0,0,0,0.0)", # No paper BG
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
         title=title,
         xaxis_title=xlab,
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
@@ -143,8 +143,8 @@ function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
     end
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.10)", # Translucent plot BG
-        paper_bgcolor="rgba(0,0,0,0)", # No paper BG
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
         xaxis_title=xlab,
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
