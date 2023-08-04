@@ -14,7 +14,7 @@ export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_
 # Profile modification functions
 export synthesizedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata
+export clippy, createdummydata, mergeposneg
 # Pending retirement
 
 # Visualization functions =====================================================
@@ -469,6 +469,22 @@ function createdummydata(nYear, nTime, nRegion, nVariable)
         DataFrames.DataFrame(:variable => sVariable),
     )
     DataFrames.insertcols!(df, :value => round.(1000*rand(DataFrames.nrow(df)), digits=2))
+    return df
+end
+
+"""
+    mergeposneg(dfpos, dfneg; col_value = :value)
+
+Merge two dataframe representing positive values and negative values into a single bidirectional data.
+"""
+function mergeposneg(dfpos::DataFrames.DataFrame, dfneg::DataFrames.DataFrame; col_value=:value)
+    dfpos_fmt = DataFrames.rename(dfpos, col_value => :pos)
+    dfneg_fmt = DataFrames.rename(dfneg, col_value => :neg)
+    df = DataFrames.outerjoin(dfpos_fmt, dfneg_fmt, on=setdiff(propertynames(dfpos), [col_value]))
+    df[ismissing.(df.pos), :pos] .= 0.0
+    df[ismissing.(df.neg), :neg] .= 0.0
+    DataFrames.transform!(df, [:pos, :neg] => ((x, y) -> x .- y) => :value)
+    DataFrames.select!(df, DataFrames.Not([:pos, :neg]))
     return df
 end
 
