@@ -4,7 +4,7 @@ module ESAFunctions
 import DataFrames, CategoricalArrays
 import SQLite, DBInterface, HDF5
 import PlotlyJS, Plots
-import Random, Distributions
+import Random, Distributions, Statistics
 
 # Declare export ==============================================================
 # Visualization functions
@@ -14,7 +14,7 @@ export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_
 # Profile modification functions
 export synthesizedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg
+export clippy, createdummydata, mergeposneg, averageprofile
 # Pending retirement
 
 # Visualization functions =====================================================
@@ -480,12 +480,48 @@ Merge two dataframe representing positive values and negative values into a sing
 function mergeposneg(dfpos::DataFrames.DataFrame, dfneg::DataFrames.DataFrame; col_value=:value)
     dfpos_fmt = DataFrames.rename(dfpos, col_value => :pos)
     dfneg_fmt = DataFrames.rename(dfneg, col_value => :neg)
-    df = DataFrames.outerjoin(dfpos_fmt, dfneg_fmt, on=setdiff(propertynames(dfpos), [col_value]))
+    df = DataFrames.outerjoin(dfpos_fmt, dfneg_fmt, on=setdiff(DataFrames.propertynames(dfpos), [col_value]))
     df[ismissing.(df.pos), :pos] .= 0.0
     df[ismissing.(df.neg), :neg] .= 0.0
     DataFrames.transform!(df, [:pos, :neg] => ((x, y) -> x .- y) => :value)
     DataFrames.select!(df, DataFrames.Not([:pos, :neg]))
     return df
+end
+
+"""
+    averageprofile(pf::Vector; Δt=1.0, bseason=true, bufferlength=3, idx_winter=missing, idx_summer=missing)
+
+Process average daily profile from an entire year's profile `pf`
+
+# Keyword Arguments
+- `Δt` : lenght of a timestep in [hour]
+- `bseason` : separate individual profiles for summer, winter, and transition period
+- `bufferlength` : empty space between seasonal profiles
+- `idx_winter` and `idx_summer` : boolean vectors indicating winter and summer. If missing, the default German winter and summer days are used. The default assumes that one year has 365 days.
+"""
+function averageprofile(pf::Vector; Δt=1.0, bseason=true, bufferlength=3, idx_winter=missing, idx_summer=missing)
+    winterday_in_DE = Bool.(vcat(ones(59), zeros(275), ones(31)))
+    summerday_in_DE = Bool.(vcat(zeros(151), ones(92), zeros(122)))
+    ts_in_day = Int(24/Δt)
+    tod = repeat(1:ts_in_day, outer=length(pf)÷ts_in_day)
+    if bseason
+        # Process season indexes
+        ismissing(idx_winter) && (idx_winter = repeat(winterday_in_DE, inner=ts_in_day))
+        ismissing(idx_summer) && (idx_summer = repeat(summerday_in_DE, inner=ts_in_day))
+        df = DataFrames.DataFrame(:tod => tod, :value => pf, :season => ".")
+        df[idx_winter, :season] .= "winter"
+        df[idx_summer, :season] .= "summer"
+        df[.!(idx_summer .| idx_winter), :season] .= "transition"
+        df = DataFrames.combine(DataFrames.groupby(df, [:tod, :season]), :value => Statistics.mean => :value)
+        DataFrames.sort!(df, [:season, :tod])
+        pf_avg = vcat(reshape(df.value, :, 3), zeros(bufferlength, 3))[:][1:(end-bufferlength)]
+    else
+        df = DataFrames.DataFrame(:tod => tod :value => pf)
+        df = DataFrames.combine(DataFrames.groupby(df, :tod), :value => Statistics.mean => :value)
+        DataFrames.sort!(df, :tod)
+        pf_avg = df.value
+    end
+    return pf_avg
 end
 
 # Pending retirement ==========================================================
