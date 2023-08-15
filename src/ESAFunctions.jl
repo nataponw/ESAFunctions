@@ -8,20 +8,20 @@ import Random, Distributions, Statistics, StatsBase
 
 # Declare export ==============================================================
 # Visualization functions
-export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotcluster, plotseries_percentile
+export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotcluster, plotseries_percentile, plotbox
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
 export synthesizedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg, averageprofile
+export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading
 # Pending retirement
 
 # Visualization functions =====================================================
 """
     plottimeseries(df::DataFrame; xlab, ylab, title, col_time, col_variable, col_value, bstack, selectcolor, legendorientation)
 
-Plot a line chart from `df` which contains columns `:time`, `:variable`, `:value`
+Plot a line chart from `df`, a dataframe with columns `:time`, `:variable`, `:value`
 
 # Keyword Arguments
 - `col_time`, `col_variable`, `col_value` as `Symbol` : overwrite the default column names
@@ -45,7 +45,6 @@ function plottimeseries(df::DataFrames.DataFrame;
     for gd ∈ DataFrames.groupby(df, col_variable)
         push!(pTraces, PlotlyJS.scatter(x=gd[:, col_time], y=gd[:, col_value], name=gd[1, col_variable], mode="lines", stackgroup=stackgroup, line=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
     end
-    # Do not show legends when there is only one trace
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
@@ -105,7 +104,6 @@ function plotbar(df::DataFrames.DataFrame;
     for gd ∈ DataFrames.groupby(df, col_variable)
         push!(pTraces, PlotlyJS.bar(x=gd[:, col_axis], y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
     end
-    # Do not show legends when there is only one trace
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
@@ -124,41 +122,42 @@ function plotbar(df::DataFrames.DataFrame;
 end
 
 """
-(Pending upgrade) Plot histogram from `dt`, a dictionary mapping between symbols and respective arrays
+    plothistogram(dt::Dict; xlab, ylab, title)
+
+Plot histogram from `dt`, a dictionary of number vectors
 """
-function plothistogram(dt::Dict; xlab::String="Value", ylab::String="Count")
-    df = DataFrames.DataFrame()
-    for iLine ∈ keys(dt)
-        if dt[iLine] isa Matrix{<: Number}
-            DataFrames.insertcols!(df, iLine => sum(dt[iLine], dims=1)[:])
-        elseif dt[iLine] isa Vector{<: Number}
-            DataFrames.insertcols!(df, iLine => dt[iLine])
-        else break
-        end
-    end
+function plothistogram(dt::Dict; xlab::String="Value", ylab::String="", title::Union{String, Missing}=missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     lvlOpacity = (DataFrames.ncol(df) == 1 ? 1.00 : 0.60)
-    for iLine ∈ names(df)
-        push!(pTraces, PlotlyJS.histogram(x=df[:, iLine], name=iLine, opacity=lvlOpacity))
+    for key ∈ keys(dt)
+        push!(pTraces, PlotlyJS.histogram(x=dt[key], name=string(key), opacity=lvlOpacity))
     end
+    showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
         plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
         paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        title=title,
         xaxis_title=xlab,
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
         yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
-        showlegend=true, legend=PlotlyJS.attr(orientation="h"),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
         barmode="overlay",
     )
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
 end
-plothistogram(dt::Vector; xlab::String="Value", ylab::String="Count") = plothistogram(Dict(:data => dt); xlab=xlab, ylab=ylab)
 
 """
-(Pending upgrade) A custom contour plot
+    plothistogram(vt::Vector; kwargs...)
+
+Format `vt` to a proper structure, and pass it to `plothistogram`
+"""
+plothistogram(vt::Vector; kwargs...) = plothistogram(Dict("" => dt); kwargs...)
+
+"""
+(Pending update) A custom contour plot
 """
 function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.contour(
@@ -179,7 +178,7 @@ function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
 end
 
 """
-(Pending upgrade) A custom heatmap plot
+(Pending update) A custom heatmap plot
 """
 function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.heatmap(
@@ -196,7 +195,7 @@ function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
 end
 
 """
-(Pending upgrade) A custom volume plot
+(Pending update) A custom volume plot
 """
 function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=nothing, isomin=nothing, isomax=nothing, surface_count=10)
     trace = PlotlyJS.volume(
@@ -278,6 +277,40 @@ function plotseries_percentile(mtx::Matrix; xlab::String="Hours in a year", ylab
     Plots.plot!(p, pf_pct25, label="pct25", linecolor=Plots.palette(:default)[3])
     return p
 end
+
+"""
+    plotbox(dt::Dict; xlab, ylab, title)
+
+Plot a box charge from `dt`, a dictionary of number vectors
+"""
+function plotbox(dt::Dict; xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing)
+    pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
+    for key ∈ keys(dt)
+        push!(pTraces, PlotlyJS.box(y=dt[key], name=string(key)))
+    end
+    showlegend = length(pTraces) > 1
+    pLayout = PlotlyJS.Layout(
+        xaxis_rangeslider_visible=false,
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        title=title,
+        xaxis_title=xlab,
+        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis_title=ylab,
+        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
+        barmode="overlay",
+    )
+    p = PlotlyJS.plot(pTraces, pLayout)
+    return p
+end
+
+"""
+    plotbox(vt::Vector; kwargs...)
+
+Format `vt` to a proper structure, and pass it to `plotbox`
+"""
+plotbox(vt::Vector; kwargs...) = plotbox(Dict("" => vt); kwargs...)
 
 # Data interface functions ====================================================
 
@@ -551,6 +584,22 @@ function averageprofile(pf::Vector; Δt=1.0, bseason=true, bufferlength=3, idx_w
         pf_avg = df.value
     end
     return pf_avg
+end
+
+"""
+    equipmentloading(df; col_region=:region, col_value=:value)
+
+Calculate loading factors from time-resolved operation profiles
+
+Loading factor is defined as the ratio of average and peak values. `df` contains time, region, and value columns. The calculation uses the absolute values.
+"""
+function equipmentloading(df; col_region=:region, col_value=:value)
+    df = deepcopy(df)
+    df[:, col_value] = abs.(df[:, col_value])
+    loading = DataFrames.combine(DataFrames.groupby(df, col_region), col_value => maximum => :peak, col_value => Statistics.mean => :avg)
+    DataFrames.select!(loading, :region, [:avg, :peak] => ((x,y) -> x ./ y) => :value)
+    loading[isnan.(loading.value), :value] .= 0.0
+    return loading
 end
 
 # Pending retirement ==========================================================
