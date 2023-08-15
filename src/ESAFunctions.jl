@@ -128,7 +128,7 @@ Plot histogram from `dt`, a dictionary of number vectors
 """
 function plothistogram(dt::Dict; xlab::String="Value", ylab::String="", title::Union{String, Missing}=missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
-    lvlOpacity = (DataFrames.ncol(df) == 1 ? 1.00 : 0.60)
+    lvlOpacity = (length(dt) == 1 ? 1.00 : 0.60)
     for key ∈ keys(dt)
         push!(pTraces, PlotlyJS.histogram(x=dt[key], name=string(key), opacity=lvlOpacity))
     end
@@ -154,7 +154,7 @@ end
 
 Format `vt` to a proper structure, and pass it to `plothistogram`
 """
-plothistogram(vt::Vector; kwargs...) = plothistogram(Dict("" => dt); kwargs...)
+plothistogram(vt::Vector; kwargs...) = plothistogram(Dict("" => vt); kwargs...)
 
 """
 (Pending update) A custom contour plot
@@ -279,16 +279,18 @@ function plotseries_percentile(mtx::Matrix; xlab::String="Hours in a year", ylab
 end
 
 """
-    plotbox(dt::Dict; xlab, ylab, title)
+    plotbox(df::DataFrame; xlab, ylab, title, col_variable, col_value)
 
-Plot a box charge from `dt`, a dictionary of number vectors
+Plot a box charge from `df`, a dataframe with columns `:variable` and `:value`
+
+# Keyword Arguments
+- `col_variable` and `col_value` as `Symbol` : overwrite the default column names
 """
-function plotbox(dt::Dict; xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing)
+function plotbox(df::DataFrames.DataFrame; xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing, col_variable=:variable, col_value=:value)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
-    for key ∈ keys(dt)
-        push!(pTraces, PlotlyJS.box(y=dt[key], name=string(key)))
+    for gd ∈ DataFrames.groupby(df, col_variable)
+        push!(pTraces, PlotlyJS.box(y=gd[:, col_value], name=gd[1, col_variable]))
     end
-    showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
         plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
@@ -298,7 +300,7 @@ function plotbox(dt::Dict; xlab::String="Scenario", ylab::String="", title::Unio
         xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
         yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
-        showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
+        showlegend=false, legend=PlotlyJS.attr(orientation="h"),
         barmode="overlay",
     )
     p = PlotlyJS.plot(pTraces, pLayout)
@@ -310,7 +312,7 @@ end
 
 Format `vt` to a proper structure, and pass it to `plotbox`
 """
-plotbox(vt::Vector; kwargs...) = plotbox(Dict("" => vt); kwargs...)
+plotbox(vt::Vector; kwargs...) = plotbox(DataFrames.DataFrame(:variable => "", :value => vt); kwargs...)
 
 # Data interface functions ====================================================
 
