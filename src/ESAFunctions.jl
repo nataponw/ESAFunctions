@@ -315,14 +315,17 @@ Format `vt` to a proper structure, and pass it to `plotbox`
 plotbox(vt::Vector; kwargs...) = plotbox(DataFrames.DataFrame(:variable => "", :value => vt); kwargs...)
 
 """
-plotmap(df_point, df_line; minscattersize, maxscattersize, opacitymarker, zoom)
+    plotmap(df_point, df_line; minscattersize, maxscattersize, opacitymarker, zoom)
 
 Under development
 
-df_point: id, cluster, longitude, latitude, value(optional)
+df_point: id (optional, needed for connection plot), cluster(optional), longitude, latitude, value(optional)
+
 df_line: id_i, id_j, value(optional)
+
+mapstyle "carto-positron", "open-street-map"
 """
-function plotmap(df_point, df_line; minscattersize=3., maxscattersize=8., opacitymarker=0.8, zoom=7)
+function plotmap(df_point, df_line=missing; minscattersize=3., maxscattersize=8., opacitymarker=0.8, zoom=13, mapstyle="carto-positron")
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     if !ismissing(df_line)
         line_lat = []; line_lon = [];
@@ -332,30 +335,29 @@ function plotmap(df_point, df_line; minscattersize=3., maxscattersize=8., opacit
             push!(line_lat, df_point[idx_i, :latitude] , df_point[idx_j, :latitude] , missing)
             push!(line_lon, df_point[idx_i, :longitude], df_point[idx_j, :longitude], missing)
         end
+        # If there is no value column, add one.
         push!(pTraces, PlotlyJS.scattermapbox(lat=line_lat, lon=line_lon, name="lines", mode="lines"))
     end
-    if :value ∈ DataFrames.propertynames(df_point)
-        df_point = deepcopy(df_point)
-        minvalue = minimum(df_point.value); maxvalue = maximum(df_point.value)
-        df_point.scattersize = (df_point.value .- minvalue) / (maxvalue-minvalue)
-        df_point.scattersize = (maxscattersize-minscattersize) * df_point.scattersize .+ minscattersize
-        println(df_point.scattersize)
-        for gd ∈ DataFrames.groupby(df_point, :cluster)
-            push!(pTraces, PlotlyJS.scattermapbox(
-                lat=gd.latitude, lon=gd.longitude, text=gd.id,
-                marker=PlotlyJS.attr(size=gd.scattersize),
-                opacity=opacitymarker,
-                name=first(gd.cluster), mode="markers",
-            ))
-        end
+    (:id ∉ propertynames(df_point)) && (df_point.id .= missing)
+    (:cluster ∉ propertynames(df_point)) && (df_point.cluster .= "")
+    (:value ∉ propertynames(df_point)) && (df_point.value .= 0.)
+    df_point = deepcopy(df_point)
+    minvalue = minimum(df_point.value); maxvalue = maximum(df_point.value)
+    df_point.scattersize = (df_point.value .- minvalue) / (==(minvalue, maxvalue) ? 1.0 : maxvalue-minvalue)
+    df_point.scattersize = (maxscattersize-minscattersize) * df_point.scattersize .+ minscattersize
+    for gd ∈ DataFrames.groupby(df_point, :cluster)
+        push!(pTraces, PlotlyJS.scattermapbox(
+            lat=gd.latitude, lon=gd.longitude, text=gd.id,
+            marker=PlotlyJS.attr(size=gd.scattersize),
+            opacity=opacitymarker,
+            name=first(gd.cluster), mode="markers",
+        ))
     end
     showlegend = (length(unique(df_point.cluster)) > 1)
     pLayout = PlotlyJS.Layout(
         hovermode="closest",
         mapbox=PlotlyJS.attr(
-            style="carto-positron",
-            accesstoken="dummytoken",
-            zoom=zoom,
+            style=mapstyle, zoom=zoom, accesstoken="dummytoken",
             center=PlotlyJS.attr(lat=sum(df_point.latitude)/DataFrames.nrow(df_point), lon=sum(df_point.longitude)/DataFrames.nrow(df_point))
         ),
         margin=PlotlyJS.attr(l=1, r=1, t=1, b=1),
