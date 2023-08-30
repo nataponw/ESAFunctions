@@ -671,9 +671,9 @@ Filter `df` using criteria in `filter_dc`, a dictionary mapping a column as a sy
 See also : [`plottimeseries`](@ref), [`plotbar`](@ref)
 """
 function df_filter_collapse_plot(df, filter_dc, keep_cols; f_collapse=sum, col_time=:time, col_value=:value, kwargs...)
-    df = deepcopy(df)
-    [filter!(col => filter_dc[col], df) for col ∈ keys(filter_dc)]
-    df = combine(groupby(df, keep_cols), col_value => f_collapse => col_value)
+    df = DataFrames.deepcopy(df)
+    [DataFrames.filter!(col => filter_dc[col], df) for col ∈ keys(filter_dc)]
+    df = DataFrames.combine(DataFrames.groupby(df, keep_cols), col_value => f_collapse => col_value)
     # Call `plottimeseries` or `plotbar`
     if col_time ∈ keep_cols
         col_variable = setdiff(keep_cols, [col_time])[1]
