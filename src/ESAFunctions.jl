@@ -12,9 +12,9 @@ export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvol
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
-export synthesizedailypattern, generatepoissonseries, synthesizeprofile
+export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading
+export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_combine_plot
 # Pending retirement
 
 # Visualization functions =====================================================
@@ -73,11 +73,11 @@ function plottimeseries(dt::Dict; kwargs...)
 end
 
 """
-    plottimeseries(vt::Vector; kwargs...)
+    plottimeseries(vt::AbstractVector; kwargs...)
 
 Format a single timeseries vector into a `df` with a proper structure, then pass it to `plottimeseries`
 """
-plottimeseries(vt::Vector; kwargs...) = plottimeseries(DataFrames.DataFrame(:time => 1:length(vt), :variable => "", :value => vt); kwargs...)
+plottimeseries(vt::AbstractVector; kwargs...) = plottimeseries(DataFrames.DataFrame(:time => 1:length(vt), :variable => "", :value => vt); kwargs...)
 
 """
     plotbar(df::DataFrame; xlab, ylab, title, col_axis, col_variable, col_value, bstack, selectcolor, legendorientation)
@@ -401,7 +401,7 @@ end
 
 Load a saved `df` (folder) from a HDF5 file
 
-See also : [`reverse save_dftoh5`](@ref)
+See also : [`save_dftoh5`](@ref)
 """
 function load_h5todf(filename::String, objectname::String)
     fid = HDF5.h5open(filename, "r")
@@ -490,7 +490,7 @@ end
 # Profile modification functions ==============================================
 
 """
-    synthesizedailypattern(nCycle, angleoffset, ΔT; bfullwave::Bool)
+    generatedailypattern(nCycle, angleoffset, ΔT; bfullwave::Bool)
 
 Synthesize a daily profile pattern using a minus cosine function
 """
@@ -655,6 +655,30 @@ function equipmentloading(df; col_region=:region, col_value=:value)
     DataFrames.select!(loading, :region, [:avg, :peak] => ((x,y) -> x ./ y) => :value)
     loading[isnan.(loading.value), :value] .= 0.0
     return loading
+end
+
+"""
+    df_filter_combine_plot(df, filter_dc, keep_cols; col_time=:time, col_value=:value, kwargs...)
+
+Basic processing of `df`, then plot either the timeseries or bar plot
+
+Filter `df` using criteria in `filter_dc`, a dictionary mapping a column as a symbol to the corresponding filter function. Collapse the filtered dataframe to only the `keep_cols` and `col_value`, the value column. Finally, the processed `df` is plotted either as a timeseries plot, or a bar plot.
+
+See also : [`plottimeseries`](@ref), [`plotbar`](@ref)
+"""
+function df_filter_combine_plot(df, filter_dc, keep_cols; col_time=:time, col_value=:value, kwargs...)
+    df = deepcopy(df)
+    [filter!(col => filter_dc[col], df) for col ∈ keys(filter_dc)]
+    df = combine(groupby(df, keep_cols), col_value => sum => col_value)
+    # Call `plottimeseries` or `plotbar`
+    if col_time ∈ keep_cols
+        col_variable = setdiff(keep_cols, [col_time])[1]
+        p = plottimeseries(df, col_variable=col_variable, col_time=col_time; kwargs...)
+    else
+        col_axis = keep_cols[1]; col_variable = keep_cols[2]
+        p = plotbar(df, col_axis=col_axis, col_variable=col_variable; kwargs...)
+    end
+    return p
 end
 
 # Pending retirement ==========================================================
