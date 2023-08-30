@@ -14,7 +14,7 @@ export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_
 # Profile modification functions
 export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_combine_plot
+export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot
 # Pending retirement
 
 # Visualization functions =====================================================
@@ -658,18 +658,22 @@ function equipmentloading(df; col_region=:region, col_value=:value)
 end
 
 """
-    df_filter_combine_plot(df, filter_dc, keep_cols; col_time=:time, col_value=:value, kwargs...)
+    df_filter_collapse_plot(df, filter_dc, keep_cols; f_collapse=sum, col_time=:time, col_value=:value, kwargs...)
 
 Basic processing of `df`, then plot either the timeseries or bar plot
 
 Filter `df` using criteria in `filter_dc`, a dictionary mapping a column as a symbol to the corresponding filter function. Collapse the filtered dataframe to only the `keep_cols` and `col_value`, the value column. Finally, the processed `df` is plotted either as a timeseries plot, or a bar plot.
 
+# Keyword Arguments
+- `f_collapse` : a function to collapse the value column, default is `sum`
+- `col_time` and `col_value` : overwrite the default column names
+
 See also : [`plottimeseries`](@ref), [`plotbar`](@ref)
 """
-function df_filter_combine_plot(df, filter_dc, keep_cols; col_time=:time, col_value=:value, kwargs...)
+function df_filter_collapse_plot(df, filter_dc, keep_cols; f_collapse=sum, col_time=:time, col_value=:value, kwargs...)
     df = deepcopy(df)
     [filter!(col => filter_dc[col], df) for col ∈ keys(filter_dc)]
-    df = combine(groupby(df, keep_cols), col_value => sum => col_value)
+    df = combine(groupby(df, keep_cols), col_value => f_collapse => col_value)
     # Call `plottimeseries` or `plotbar`
     if col_time ∈ keep_cols
         col_variable = setdiff(keep_cols, [col_time])[1]
