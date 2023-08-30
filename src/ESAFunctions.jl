@@ -96,13 +96,14 @@ function plotbar(df::DataFrames.DataFrame;
     bstack::Bool=false, selectcolor=missing,
     legendorientation="h",
     )
+    subfunction_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Plot settings
     barmode = (bstack ? "stack" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     for gd ∈ DataFrames.groupby(df, col_variable)
-        push!(pTraces, PlotlyJS.bar(x=Array(gd[:, col_axis]), y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
+        push!(pTraces, PlotlyJS.bar(x=subfunction_xlabel(gd, col_axis), y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
     end
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
