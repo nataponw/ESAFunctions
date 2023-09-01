@@ -14,7 +14,7 @@ export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_
 # Profile modification functions
 export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot
+export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot, getcolor
 # Pending retirement
 
 # Visualization functions =====================================================
@@ -684,6 +684,21 @@ function df_filter_collapse_plot(df, filter_dc, keep_cols; f_collapse=sum, col_t
         p = plotbar(df, col_axis=col_axis, col_variable=col_variable; kwargs...)
     end
     return p
+end
+
+"""
+    getcolor(key; colorcode=colorcode)
+
+Fetch an RGBA color from `colorcode`, a global dictionary variable
+
+If the key does not exist, then random a color and update the `colorcode`
+"""
+function getcolor(key; colorcode=colorcode)
+    if key ∉ keys(colorcode)
+        tmp = lpad.(rand(0:255, 3), 3, "0")
+        colorcode[key] = "rgba($(tmp[1]), $(tmp[2]), $(tmp[3]), 0.5)"
+    end
+    return colorcode[key]
 end
 
 # Pending retirement ==========================================================
