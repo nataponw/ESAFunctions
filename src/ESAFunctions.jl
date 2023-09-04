@@ -8,7 +8,7 @@ import Random, Distributions, Statistics, StatsBase
 
 # Declare export ==============================================================
 # Visualization functions
-export plottimeseries, plotbar, plothistogram, plotcontour, plotheatmap, plotvolume, plotcluster, plotseries_percentile, plotbox, plotmap
+export plottimeseries, plotbar, plothistogram, plotcontour, plotsurface, plotheatmap, plotvolume, plotcluster, plotseries_percentile, plotbox, plotmap
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
@@ -158,25 +158,88 @@ Format `vt` to a proper structure, and pass it to `plothistogram`
 plothistogram(vt::Vector; kwargs...) = plothistogram(Dict("" => vt); kwargs...)
 
 """
-(Pending update) A custom contour plot
+    plotcontour(x, y, z; xlab, ylab, title, zmin, zmax)
+
+Create a contour plot given the range of `x` and `y`, and the matrix `z` (n_x x n_y)
+
+# Keyword Arguments
+- `zmin` and `zmax` : limits of `z` for the color gradient
 """
-function plotcontour(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
+function plotcontour(x, y, z; xlab::String="x", ylab::String="y", title::Union{String, Missing}=missing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.contour(
-        x=X, y=Y, z=Z, zmin=zmin, zmax=zmax,
+        x=x, y=y, z=z, zmin=zmin, zmax=zmax,
         contours=PlotlyJS.attr(
             showlabels=true, 
             labelfont = PlotlyJS.attr(color="darkgray")
         )
     )
     layout = PlotlyJS.Layout(
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
         title=title,
         xaxis_title=xlab,
+        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
-        showscale=false,
+        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        showscale=true,
     )
     p = PlotlyJS.plot(trace, layout)
     return p
 end
+
+"""
+    plotcontour(x, y, f::Function; kwargs...)
+
+Plot a contour of a bivariante function `f` providing that its `x` and `y` ranges are given
+"""
+plotcontour(x, y, f::Function; kwargs...) = plotcontour(x, y, f.(x, y'); kwargs...)
+
+"""
+    plotsurface(x, y, z; xlab, ylab, zlab, title, zmin, zmax)
+
+Create a contour plot given the range of `x` and `y`, and the matrix `z` (n_x x n_y)
+
+# Keyword Arguments
+- `zmin` and `zmax` : limits of `z` for the color gradient
+"""
+function plotsurface(x, y, z; xlab::String="x", ylab::String="y", zlab::String="z", title::Union{String, Missing}=missing, zmin=nothing, zmax=nothing)
+    trace = PlotlyJS.surface(x=x, y=y, z=z, zmin=zmin, zmax=zmax)
+    layout = PlotlyJS.Layout(
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        title=title,
+        showscale=true,
+        scene=PlotlyJS.attr(
+            xaxis_title=xlab,
+            xaxis=PlotlyJS.attr(
+                backgroundcolor="rgba(255,255,255,0.00)",
+                gridcolor="rgba(0,0,0,0.50)",
+                zerolinecolor="rgba(0,0,0,1.00)",
+            ),
+            yaxis_title=ylab,
+            yaxis=PlotlyJS.attr(
+                backgroundcolor="rgba(255,255,255,0.00)",
+                gridcolor="rgba(0,0,0,0.50)",
+                zerolinecolor="rgba(0,0,0,1.00)",
+            ),
+            zaxis_title=zlab,
+            zaxis=PlotlyJS.attr(
+                backgroundcolor="rgba(255,255,255,0.00)",
+                gridcolor="rgba(0,0,0,0.50)",
+                zerolinecolor="rgba(0,0,0,1.00)",
+            ),
+        ),
+    )
+    p = PlotlyJS.plot(trace, layout)
+    return p
+end
+
+"""
+    plotsurface(x, y, f::Function; kwargs...)
+
+Plot a surface of a bivariante function `f` providing that its `x` and `y` ranges are given
+"""
+plotsurface(x, y, f::Function; kwargs...) = plotsurface(x, y, f.(x, y'); kwargs...)
 
 """
 (Pending update) A custom heatmap plot
