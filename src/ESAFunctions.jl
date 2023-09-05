@@ -212,20 +212,20 @@ function plotsurface(x, y, z; xlab::String="x", ylab::String="y", zlab::String="
         scene=PlotlyJS.attr(
             xaxis_title=xlab,
             xaxis=PlotlyJS.attr(
-                backgroundcolor="rgba(255,255,255,0.00)",
-                gridcolor="rgba(0,0,0,0.50)",
+                showbackground=false,
+                gridcolor="rgba(200,200,200,0.9)",
                 zerolinecolor="rgba(0,0,0,1.00)",
             ),
             yaxis_title=ylab,
             yaxis=PlotlyJS.attr(
-                backgroundcolor="rgba(255,255,255,0.00)",
-                gridcolor="rgba(0,0,0,0.50)",
+                showbackground=false,
+                gridcolor="rgba(200,200,200,0.9)",
                 zerolinecolor="rgba(0,0,0,1.00)",
             ),
             zaxis_title=zlab,
             zaxis=PlotlyJS.attr(
-                backgroundcolor="rgba(255,255,255,0.00)",
-                gridcolor="rgba(0,0,0,0.50)",
+                showbackground=false,
+                gridcolor="rgba(200,200,200,0.9)",
                 zerolinecolor="rgba(0,0,0,1.00)",
             ),
         ),
@@ -259,9 +259,15 @@ function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=no
 end
 
 """
-(Pending update) A custom volume plot
+    plotvolume(X, Y, Z, V; xlab, ylab, zlab, title, isomin, isomax, surface_count=10)
+
+Plot a volume from 3D index matrixes `X`, `Y`, and `Z`, and the 3D value matrix `V`
+
+# Keyword Arguments
+- `isomin` and `isomax` : limits of `v` for the color gradient
+- `surface_count` : number of separation surfaces
 """
-function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=nothing, isomin=nothing, isomax=nothing, surface_count=10)
+function plotvolume(X, Y, Z, V; xlab::String="x", ylab::String="y", zlab::String="z", title::Union{String, Missing}=missing, isomin=nothing, isomax=nothing, surface_count=10)
     trace = PlotlyJS.volume(
         x=X[:], y=Y[:], z=Z[:], value=V[:],
         isomin=isomin, isomax=isomax,
@@ -274,21 +280,38 @@ function plotvolume(X, Y, Z, V; title=nothing, xlab=nothing, ylab=nothing, zlab=
             xaxis=PlotlyJS.attr(
                 showbackground=false,
                 gridcolor="rgba(200,200,200,0.9)",
+                zerolinecolor="rgba(0,0,0,1.00)",
             ),
             yaxis_title=ylab,
             yaxis=PlotlyJS.attr(
                 showbackground=false,
                 gridcolor="rgba(200,200,200,0.9)",
+                zerolinecolor="rgba(0,0,0,1.00)",
             ),
             zaxis_title=zlab,
             zaxis=PlotlyJS.attr(
                 showbackground=false,
                 gridcolor="rgba(200,200,200,0.9)",
+                zerolinecolor="rgba(0,0,0,1.00)",
             ),
         ),
     )
     p = PlotlyJS.plot(trace, layout)
     return p
+end
+
+"""
+    plotvolume(xrange, yrange, zrange, f::Function; kwargs...)
+
+Plot a volume from range vectors and a function `f`
+"""
+function plotvolume(xrange, yrange, zrange, f::Function; kwargs...)
+    mesh = Iterators.product(xrange, yrange, zrange)
+    X = map(m -> m[1], mesh)
+    Y = map(m -> m[2], mesh)
+    Z = map(m -> m[3], mesh)
+    V = f.(X, Y, Z)
+    return plotvolume(X, Y, Z, V; kwargs...)
 end
 
 """
@@ -335,7 +358,7 @@ function plotseries_percentile(mtx::Matrix; xlab::String="Hours in a year", ylab
         mtx = sort(mtx, dims=1)
     end
     p = Plots.plot(title=title, xlabel=xlab, ylabel=ylab, ylims=ylims)
-    [Plots.plot!(p, sort(mtx[:, iobj]), label=nothing, linecolor=:black, linealpha=linealpha) for iobj ∈ 1:(size(mtx)[2])]
+    [Plots.plot!(p, mtx[:, iobj], label=nothing, linecolor=:black, linealpha=linealpha) for iobj ∈ 1:(size(mtx)[2])]
     Plots.plot!(p, pf_pct50, label="pct50", linecolor=Plots.palette(:default)[1])
     Plots.plot!(p, pf_pct75, label="pct75", linecolor=Plots.palette(:default)[2])
     Plots.plot!(p, pf_pct25, label="pct25", linecolor=Plots.palette(:default)[3])
