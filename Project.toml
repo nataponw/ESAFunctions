@@ -1,3 +1,8 @@
+name = "ESAFunctions"
+uuid = "4d1f87a4-e325-4bca-bc58-e7375b589847"
+authors = ["Natapon Wanapinit"]
+version = "1.0.4"
+
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
@@ -10,3 +15,13 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
