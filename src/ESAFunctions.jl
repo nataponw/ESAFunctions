@@ -720,7 +720,7 @@ function averageprofile(pf::Vector; Δt=1.0, bseason=true, bufferlength=3, idx_w
         DataFrames.sort!(df, [:season, :tod])
         pf_avg = vcat(reshape(df.value, :, 3), zeros(bufferlength, 3))[:][1:(end-bufferlength)]
     else
-        df = DataFrames.DataFrame(:tod => tod :value => pf)
+        df = DataFrames.DataFrame(:tod => tod, :value => pf)
         df = DataFrames.combine(DataFrames.groupby(df, :tod), :value => Statistics.mean => :value)
         DataFrames.sort!(df, :tod)
         pf_avg = df.value
