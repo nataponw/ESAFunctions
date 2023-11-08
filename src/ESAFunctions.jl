@@ -650,11 +650,11 @@ end
 # Miscellaneous functions =====================================================
 
 """
-    clippy(df::DataFrame)
+    clippy(obj)
 
-Copy `df` into system's clipboard
+Copy an object `obj` into system's clipboard
 """
-clippy(df::DataFrames.DataFrame) = Main.clipboard(sprint(show, "text/tab-separated-values", df))
+clippy(obj) = Main.clipboard(sprint(show, "text/tab-separated-values", obj))
 
 """
     createdummydata(nYear, nTime, nRegion, nVariable)
