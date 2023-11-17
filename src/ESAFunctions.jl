@@ -414,7 +414,9 @@ mapstyle "carto-positron", "open-street-map"
 """
 function plotmap(df_point, df_line=missing; minscattersize=3., maxscattersize=8., opacitymarker=0.8, zoom=13, mapstyle="carto-positron")
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
+    df_point = deepcopy(df_point)
     if !ismissing(df_line)
+        df_line = deepcopy(df_line)
         line_lat = []; line_lon = [];
         for r ∈ DataFrames.eachrow(df_line)
             idx_i = findfirst(==(r.id_i), df_point.id)
@@ -428,7 +430,6 @@ function plotmap(df_point, df_line=missing; minscattersize=3., maxscattersize=8.
     (:id ∉ propertynames(df_point)) && (df_point.id .= missing)
     (:cluster ∉ propertynames(df_point)) && (df_point.cluster .= "")
     (:value ∉ propertynames(df_point)) && (df_point.value .= 0.)
-    df_point = deepcopy(df_point)
     minvalue = minimum(df_point.value); maxvalue = maximum(df_point.value)
     df_point.scattersize = (df_point.value .- minvalue) / (==(minvalue, maxvalue) ? 1.0 : maxvalue-minvalue)
     df_point.scattersize = (maxscattersize-minscattersize) * df_point.scattersize .+ minscattersize
