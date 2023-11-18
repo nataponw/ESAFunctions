@@ -12,7 +12,7 @@ export plottimeseries, plotbar, plothistogram, plotcontour, plotsurface, plothea
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
-export generatedailypattern, generatepoissonseries, synthesizeprofile
+export generatedailypattern, generatepoissonseries, synthesizeprofile, normalize
 # Miscellaneous functions
 export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot, getcolor
 # Pending retirement
@@ -646,6 +646,31 @@ function synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float
     # Shift back synprofile
     circshift!(synprofile, -moveindex)
     return synprofile
+end
+
+"""
+    normalize(vt::Vector; mode::Symbol=:unitpeak, ϵ=1e-6)
+
+Normalize the vector `vt`
+
+# Keyword Arguments
+- `mode`: either :unitpeak, :unitsum, or :unitvariance
+- `ϵ`: criteria to reject the normalization, e.g., when `vt` is a zero vector.
+"""
+function normalize(vt::Vector; mode::Symbol=:unitpeak, ϵ=1e-6)
+    if mode == :unitpeak
+        min_pf = minimum(skipmissing(vt)); max_pf = maximum(skipmissing(vt))
+        return (abs(max_pf - min_pf) > ϵ) ? ((vt .- min_pf) / (max_pf - min_pf)) : vt
+    elseif mode == :unitsum
+        sum_pf = sum(skipmissing(vt))
+        return (abs(sum_pf) > ϵ) ? (vt / sum_pf) : vt
+    elseif mode == :unitvariance
+        std_pf = Statistics.std(skipmissing(vt))
+        return (std_pf > ϵ) ? (vt / std_pf) : vt
+    else
+        @warn "Unrecognized mode"
+        return repeat([missing], length(vt))
+    end
 end
 
 # Miscellaneous functions =====================================================
