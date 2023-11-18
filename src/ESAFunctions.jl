@@ -649,16 +649,16 @@ function synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float
 end
 
 """
-    normalize(vt::Vector; mode::Symbol=:unitpeak, ϵ=1e-6)
+    normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
 
 Normalize the vector `vt`
 
 # Keyword Arguments
-- `mode`: either :unitpeak, :unitsum, or :unitvariance
+- `mode`: either :unitrange, :unitsum, or :unitvariance
 - `ϵ`: criteria to reject the normalization, e.g., when `vt` is a zero vector.
 """
-function normalize(vt::Vector; mode::Symbol=:unitpeak, ϵ=1e-6)
-    if mode == :unitpeak
+function normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
+    if mode == :unitrange
         min_pf = minimum(skipmissing(vt)); max_pf = maximum(skipmissing(vt))
         return (abs(max_pf - min_pf) > ϵ) ? ((vt .- min_pf) / (max_pf - min_pf)) : vt
     elseif mode == :unitsum
