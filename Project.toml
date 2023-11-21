@@ -1,7 +1,7 @@
 name = "ESAFunctions"
 uuid = "4d1f87a4-e325-4bca-bc58-e7375b589847"
 authors = ["Natapon Wanapinit"]
-version = "1.0.4"
+version = "1.0.5"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
