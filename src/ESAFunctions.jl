@@ -10,7 +10,7 @@ import Random, Distributions, Statistics, StatsBase
 # Visualization functions with Plots
 export plotcluster, plotseries_percentile
 # Interactive visualization functions with PlotlyJS
-export plottimeseries, plotbar, plothistogram, plotcontour, plotsurface, plotheatmap, plotvolume, plotbox, plotmap
+export saveplot, plottimeseries, plotbar, plothistogram, plotcontour, plotsurface, plotheatmap, plotvolume, plotbox, plotmap
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions

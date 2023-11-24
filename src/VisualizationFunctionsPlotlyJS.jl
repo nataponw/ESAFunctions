@@ -1,4 +1,15 @@
 """
+    saveplot(p::PlotlyJS.SyncPlot, filename::String; width=800, height=600, scale=4)
+
+Save a `PlotlyJS` plot, format is automatically detected from `filename`
+"""
+function saveplot(p::PlotlyJS.SyncPlot, filename::String; width=800, height=600, scale=4)
+    format = string(last(split(filename, '.')))
+    PlotlyJS.savefig(p, filename, width=width, height=height, scale=scale, format=format)
+    return nothing
+end
+
+"""
     plottimeseries(df::DataFrame; xlab, ylab, title, col_time, col_variable, col_value, bstack, selectcolor, legendorientation)
 
 Plot a line chart from `df`, a dataframe with columns `:time`, `:variable`, `:value`
