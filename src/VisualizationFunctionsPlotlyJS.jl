@@ -74,7 +74,7 @@ plottimeseries(vt::AbstractVector; kwargs...) = plottimeseries(DataFrames.DataFr
 """
     plotbar(df::DataFrame; xlab, ylab, title, col_axis, col_variable, col_value, bstack, selectcolor, legendorientation)
 
-Plot a bar chart from `df` which contains columns `:axis`, `:variable`, `:value`
+Plot a bar chart from `df` which contains columns `:axis`, `:variable` (optional), `:value`
 
 # Keyword Arguments
 - `col_axis`, `col_variable`, `col_value` as `Symbol` : overwrite the default column names
@@ -91,6 +91,8 @@ function plotbar(df::DataFrames.DataFrame;
     subfunction_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
+    # Check if `col_variable` exists
+    col_variable ∉ DataFrames.propertynames(df) && (df[:, col_variable] .= "")
     # Plot settings
     barmode = (bstack ? "stack" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
