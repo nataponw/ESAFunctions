@@ -26,8 +26,8 @@ function plottimeseries(df::DataFrames.DataFrame;
     bstack::Bool=false, selectcolor=missing,
     legendorientation="h",
     )
-    # Handle when col_variable is missing.
-    col_variable ∉ propertynames(df) && (df[!, col_variable] .= "")
+    # Handle when `col_variable` is missing.
+    col_variable ∉ DataFrames.propertynames(df) && (df = deepcopy(df); df[!, col_variable] .= "")
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Plot settings
@@ -91,8 +91,8 @@ function plotbar(df::DataFrames.DataFrame;
     subfunction_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
-    # Check if `col_variable` exists
-    col_variable ∉ DataFrames.propertynames(df) && (df[:, col_variable] .= "")
+    # Handle when `col_variable` is missing.
+    col_variable ∉ DataFrames.propertynames(df) && (df = deepcopy(df); df[:, col_variable] .= "")
     # Plot settings
     barmode = (bstack ? "stack" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
