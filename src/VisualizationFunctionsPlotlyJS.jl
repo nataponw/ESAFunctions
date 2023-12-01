@@ -186,7 +186,7 @@ end
 
 Plot a contour of a bivariante function `f` providing that its `x` and `y` ranges are given
 """
-plotcontour(x, y, f::Function; kwargs...) = plotcontour(x, y, f.(x, y'); kwargs...)
+plotcontour(x, y, f::Function; kwargs...) = plotcontour(x, y, f.(x', y); kwargs...)
 
 """
     plotsurface(x, y, z; xlab, ylab, zlab, title, zmin, zmax)
