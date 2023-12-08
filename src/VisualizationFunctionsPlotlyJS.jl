@@ -88,7 +88,8 @@ function plotbar(df::DataFrames.DataFrame;
     bstack::Bool=false, selectcolor=missing,
     legendorientation="h",
     )
-    subfunction_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
+    # Process single or multiple x labels
+    _process_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
     # Color palette
     ismissing(selectcolor) && (selectcolor = (x -> missing))
     # Handle when `col_variable` is missing.
@@ -97,7 +98,7 @@ function plotbar(df::DataFrames.DataFrame;
     barmode = (bstack ? "stack" : missing)
     pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
     for gd ∈ DataFrames.groupby(df, col_variable)
-        push!(pTraces, PlotlyJS.bar(x=subfunction_xlabel(gd, col_axis), y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
+        push!(pTraces, PlotlyJS.bar(x=_process_xlabel(gd, col_axis), y=gd[:, col_value], name=gd[1, col_variable], marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
     end
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
@@ -154,7 +155,9 @@ plothistogram(vt::Vector; kwargs...) = plothistogram(Dict("" => vt); kwargs...)
 """
     plotcontour(x, y, z; xlab, ylab, title, zmin, zmax)
 
-Create a contour plot given the range of `x` and `y`, and the matrix `z` (n_x x n_y)
+Create a contour plot
+
+Acceptable formats are 1) `x` and `y` are range vectors, and `z` is a matrix (n_x x n_y), 2) `x` and `y` are vector with repeating values of a length n_x x n_y, and `z` is a vector.
 
 # Keyword Arguments
 - `zmin` and `zmax` : limits of `z` for the color gradient
@@ -236,21 +239,39 @@ Plot a surface of a bivariante function `f` providing that its `x` and `y` range
 plotsurface(x, y, f::Function; kwargs...) = plotsurface(x, y, f.(x, y'); kwargs...)
 
 """
-(Pending update) A custom heatmap plot
+    plotheatmap(x, y, z; xlab, ylab, title, zmin, zmax)
+
+Plot a heatmap
+
+Acceptable formats are 1) `x` and `y` are range vectors, and `z` is a matrix (n_x x n_y), 2) `x` and `y` are vector with repeating values of a length n_x x n_y, and `z` is a vector.
+
+# Keyword Arguments
+- `zmin` and `zmax` : limits of `z` for the color gradient
 """
-function plotheatmap(X, Y, Z; title=nothing, xlab=nothing, ylab=nothing, zmin=nothing, zmax=nothing)
+function plotheatmap(x, y, z; xlab::String="x", ylab::String="y", title::Union{String, Missing}=missing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.heatmap(
-        x=X, y=Y, z=Z, zmin=zmin, zmax=zmax
+        x=x, y=y, z=z, zmin=zmin, zmax=zmax
     )
     layout = PlotlyJS.Layout(
+        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
+        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
         title=title,
         xaxis_title=xlab,
+        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
         yaxis_title=ylab,
-        showscale=false,
+        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        showscale=true,
     )
     p = PlotlyJS.plot(trace, layout)
     return p
 end
+
+"""
+    plotheatmap(x, y, f::Function; kwargs...)
+
+Plot a heatmap of a bivariante function `f` providing that its `x` and `y` ranges are given
+"""
+plotheatmap(x, y, f::Function; kwargs...) = plotheatmap(x, y, f.(x', y); kwargs...)
 
 """
     plotvolume(X, Y, Z, V; xlab, ylab, zlab, title, isomin, isomax, surface_count=10)
