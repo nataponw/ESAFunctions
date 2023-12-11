@@ -1,3 +1,10 @@
+const _plotly_layout = Dict(
+    :bgcolor_plot   => "rgba(255,255,255,0.0)", # Transparent plot BG
+    :bgcolor_paper  => "rgba(255,255,255,1.0)", # White paper BG
+    :linecolor_axis => "rgba(000,000,000,1.0)",
+    :linecolor_grid => "rgba(200,200,200,0.9)",
+)
+
 """
     saveplot(p::PlotlyJS.SyncPlot, filename::String; width=800, height=600, scale=4)
 
@@ -25,7 +32,7 @@ function plottimeseries(df::DataFrames.DataFrame;
     col_time=:time, col_variable=:variable, col_value=:value,
     bstack::Bool=false, selectcolor=missing,
     legendorientation="h",
-    )
+)
     # Handle when `col_variable` is missing.
     col_variable ∉ DataFrames.propertynames(df) && (df = deepcopy(df); df[!, col_variable] .= "")
     # Color palette
@@ -39,13 +46,13 @@ function plottimeseries(df::DataFrames.DataFrame;
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showlegend=showlegend, legend=PlotlyJS.attr(orientation=legendorientation),
     )
     p = PlotlyJS.plot(pTraces, pLayout)
@@ -85,9 +92,8 @@ Plot a bar chart from `df` which contains columns `:axis`, `:variable` (optional
 function plotbar(df::DataFrames.DataFrame;
     xlab::String="Scenario", ylab::String="", title::Union{String, Missing}=missing,
     col_axis=:axis, col_variable=:variable, col_value=:value,
-    bstack::Bool=false, selectcolor=missing,
-    legendorientation="h",
-    )
+    bstack::Bool=false, selectcolor=missing, legendorientation="h",
+)
     # Process single or multiple x labels
     _process_xlabel(df, col_axis) = (isa(col_axis, Vector) ? [df[:, col] for col ∈ col_axis] : df[:, col_axis])
     # Color palette
@@ -103,13 +109,13 @@ function plotbar(df::DataFrames.DataFrame;
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showlegend=showlegend, legend=PlotlyJS.attr(orientation=legendorientation),
         barmode=barmode,
     )
@@ -131,13 +137,13 @@ function plothistogram(dt::Dict; xlab::String="Value", ylab::String="", title::U
     showlegend = length(pTraces) > 1
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showlegend=showlegend, legend=PlotlyJS.attr(orientation="h"),
         barmode="overlay",
     )
@@ -171,13 +177,13 @@ function plotcontour(x, y, z; xlab::String="x", ylab::String="y", title::Union{S
         )
     )
     layout = PlotlyJS.Layout(
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showscale=true,
     )
     p = PlotlyJS.plot(trace, layout)
@@ -202,28 +208,28 @@ Create a contour plot given the range of `x` and `y`, and the matrix `z` (n_x x 
 function plotsurface(x, y, z; xlab::String="x", ylab::String="y", zlab::String="z", title::Union{String, Missing}=missing, zmin=nothing, zmax=nothing)
     trace = PlotlyJS.surface(x=x, y=y, z=z, zmin=zmin, zmax=zmax)
     layout = PlotlyJS.Layout(
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         showscale=true,
         scene=PlotlyJS.attr(
             xaxis_title=xlab,
             xaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
             yaxis_title=ylab,
             yaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
             zaxis_title=zlab,
             zaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
         ),
     )
@@ -253,13 +259,13 @@ function plotheatmap(x, y, z; xlab::String="x", ylab::String="y", title::Union{S
         x=x, y=y, z=z, zmin=zmin, zmax=zmax
     )
     layout = PlotlyJS.Layout(
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showscale=true,
     )
     p = PlotlyJS.plot(trace, layout)
@@ -289,25 +295,27 @@ function plotvolume(X, Y, Z, V; xlab::String="x", ylab::String="y", zlab::String
         opacity=0.20, surface_count=surface_count,
     )
     layout = PlotlyJS.Layout(
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         scene=PlotlyJS.attr(
             xaxis_title=xlab,
             xaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
             yaxis_title=ylab,
             yaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
             zaxis_title=zlab,
             zaxis=PlotlyJS.attr(
                 showbackground=false,
-                gridcolor="rgba(200,200,200,0.9)",
-                zerolinecolor="rgba(0,0,0,1.00)",
+                gridcolor=_plotly_layout[:linecolor_grid],
+                zerolinecolor=_plotly_layout[:linecolor_axis],
             ),
         ),
     )
@@ -344,13 +352,13 @@ function plotbox(df::DataFrames.DataFrame; xlab::String="Scenario", ylab::String
     end
     pLayout = PlotlyJS.Layout(
         xaxis_rangeslider_visible=false,
-        plot_bgcolor="rgba(255,255,255,0.0)", # Transparent plot BG
-        paper_bgcolor="rgba(255,255,255,1.0)", # White paper BG
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
         title=title,
         xaxis_title=xlab,
-        xaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         yaxis_title=ylab,
-        yaxis=PlotlyJS.attr(linecolor="rgba(0,0,0,0.10)"),
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
         showlegend=false, legend=PlotlyJS.attr(orientation="h"),
         barmode="overlay",
     )
@@ -418,3 +426,43 @@ function plotmap(df_point, df_line=missing; minscattersize=3., maxscattersize=8.
     p = PlotlyJS.plot(pTraces, pLayout)
     return p
 end
+
+"""
+    plotscatter(df::DataFrame; xlab, ylab, title, col_x, col_y, col_variable, selectcolor, legendorientation)
+
+Create a scatter plot from `df`, a DataFrame with columns `x`, `y`, and (optional) `variable`
+
+# Keyword Arguments
+- `col_x`, `col_y`, `col_variable` as `Symbol` : overwrite the default column names
+- `selectcolor` : a function that returns a color given a variable name
+- `legendorientation` : "h" or "l"
+"""
+function plotscatter(df::DataFrames.DataFrame;
+    xlab::String="", ylab::String="", title::Union{String, Missing}=missing,
+    col_x=:x, col_y=:y, col_variable=:variable,
+    selectcolor=missing, legendorientation="h",
+)
+    # Color palette
+    ismissing(selectcolor) && (selectcolor = (x -> missing))
+    # Handle when `col_variable` is missing.
+    col_variable ∉ DataFrames.propertynames(df) && (df = deepcopy(df); df[:, col_variable] .= "")
+    pTraces = PlotlyJS.PlotlyBase.GenericTrace[]
+    for gd ∈ DataFrames.groupby(df, col_variable)
+        push!(pTraces, PlotlyJS.scatter(x=gd[:, col_x], y=gd[:, col_y], name=gd[1, col_variable], mode="markers", marker=PlotlyJS.PlotlyBase.attr(color=selectcolor(gd[1, col_variable]))))
+    end
+    showlegend = length(pTraces) > 1
+    pLayout = PlotlyJS.Layout(
+        xaxis_rangeslider_visible=false,
+        plot_bgcolor=_plotly_layout[:bgcolor_plot],
+        paper_bgcolor=_plotly_layout[:bgcolor_paper],
+        title=title,
+        xaxis_title=xlab,
+        xaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
+        yaxis_title=ylab,
+        yaxis=PlotlyJS.attr(linecolor=_plotly_layout[:linecolor_axis]),
+        showlegend=showlegend, legend=PlotlyJS.attr(orientation=legendorientation),
+    )
+    p = PlotlyJS.plot(pTraces, pLayout)
+    return p
+end
+
