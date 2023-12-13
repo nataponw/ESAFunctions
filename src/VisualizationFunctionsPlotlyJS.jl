@@ -466,3 +466,13 @@ function plotscatter(df::DataFrames.DataFrame;
     return p
 end
 
+"""
+    plotscatter(mtx::AbstractArray, vt::Vector; kwargs...)
+
+Format a matrix `mtx` and its corresponding variable vector `vt`, then pass it to `plotscatter`
+"""
+function plotscatter(mtx::AbstractArray, vt::Vector; kwargs...)
+    df = DataFrames.DataFrame(mtx, [:x, :y])
+    DataFrames.insertcols!(df, :variable => vt)
+    return plotscatter(df; kwargs...)
+end
