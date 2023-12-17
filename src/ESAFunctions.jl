@@ -271,7 +271,7 @@ end
 Normalize the vector `vt`
 
 # Keyword Arguments
-- `mode`: either :unitrange, :unitsum, or :unitvariance
+- `mode`: either :unitrange, :unitsum, :unitvariance, or :unitvariancezeromean
 - `ϵ`: criteria to reject the normalization, e.g., when `vt` is a zero vector.
 """
 function normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
@@ -284,6 +284,10 @@ function normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
     elseif mode == :unitvariance
         std_pf = Statistics.std(skipmissing(vt))
         return (std_pf > ϵ) ? (vt / std_pf) : vt
+    elseif mode == :unitvariancezeromean
+        std_pf = Statistics.std(skipmissing(vt))
+        mean_pf = Statistics.mean(skipmissing(vt))
+        return (std_pf > ϵ) ? ((vt .- mean_pf) / std_pf) : vt
     else
         @warn "Unrecognized mode"
         return repeat([missing], length(vt))
