@@ -7,17 +7,20 @@ import PlotlyJS, Plots
 import Random, Distributions, Statistics, StatsBase
 
 # Declare export ==============================================================
-# Visualization functions with Plots
-export plotcluster, plotseries_percentile
 # Interactive visualization functions with PlotlyJS
 export saveplot, plottimeseries, plotbar, plothistogram, plotcontour, plotsurface, plotheatmap, plotvolume, plotbox, plotmap, plotscatter
+# Visualization functions with Plots
+export plotcluster, plotseries_percentile
 # Data interface functions
 export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_dbtable, appendtxt
 # Profile modification functions
-export generatedailypattern, generatepoissonseries, synthesizeprofile, normalize
+export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
 export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot, getcolor
 # Pending retirement
+
+# Interactive visualization functions with PlotlyJS ===========================
+include(joinpath(@__DIR__, "VisualizationFunctionsPlotlyJS.jl"))
 
 # Visualization functions with Plots ==========================================
 """
@@ -70,9 +73,6 @@ function plotseries_percentile(mtx::Matrix; xlab::String="Hours in a year", ylab
     Plots.plot!(p, pf_pct25, label="pct25", linecolor=Plots.palette(:default)[3])
     return p
 end
-
-# Interactive visualization functions with PlotlyJS ===========================
-include(joinpath(@__DIR__, "VisualizationFunctionsPlotlyJS.jl"))
 
 # Data interface functions ====================================================
 """
@@ -263,35 +263,6 @@ function synthesizeprofile(avgprofile::Vector{Float64}, λ::Int; base_rel::Float
     # Shift back synprofile
     circshift!(synprofile, -moveindex)
     return synprofile
-end
-
-"""
-    normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
-
-Normalize the vector `vt`
-
-# Keyword Arguments
-- `mode`: either :unitrange, :unitsum, :unitvariance, or :unitvariancezeromean
-- `ϵ`: criteria to reject the normalization, e.g., when `vt` is a zero vector.
-"""
-function normalize(vt::Vector; mode::Symbol=:unitrange, ϵ=1e-6)
-    if mode == :unitrange
-        min_pf = minimum(skipmissing(vt)); max_pf = maximum(skipmissing(vt))
-        return (abs(max_pf - min_pf) > ϵ) ? ((vt .- min_pf) / (max_pf - min_pf)) : vt
-    elseif mode == :unitsum
-        sum_pf = sum(skipmissing(vt))
-        return (abs(sum_pf) > ϵ) ? (vt / sum_pf) : vt
-    elseif mode == :unitvariance
-        std_pf = Statistics.std(skipmissing(vt))
-        return (std_pf > ϵ) ? (vt / std_pf) : vt
-    elseif mode == :unitvariancezeromean
-        std_pf = Statistics.std(skipmissing(vt))
-        mean_pf = Statistics.mean(skipmissing(vt))
-        return (std_pf > ϵ) ? ((vt .- mean_pf) / std_pf) : vt
-    else
-        @warn "Unrecognized mode"
-        return repeat([missing], length(vt))
-    end
 end
 
 # Miscellaneous functions =====================================================
