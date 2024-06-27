@@ -4,7 +4,7 @@ module ESAFunctions
 import DataFrames, CategoricalArrays
 import SQLite, DBInterface, HDF5
 import PlotlyJS, Plots
-import Random, Distributions, Statistics, StatsBase
+import Random, Distributions, Statistics, StatsBase, Dates
 
 # Declare export ==============================================================
 # Interactive visualization functions with PlotlyJS
@@ -16,7 +16,7 @@ export save_dftoh5, load_h5todf, loadall_h5todf, save_dftodb, load_dbtodf, list_
 # Profile modification functions
 export generatedailypattern, generatepoissonseries, synthesizeprofile
 # Miscellaneous functions
-export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot, getcolor
+export clippy, createdummydata, mergeposneg, averageprofile, equipmentloading, df_filter_collapse_plot, getcolor, convert_serialdate_datetime
 # Pending retirement
 
 # Interactive visualization functions with PlotlyJS ===========================
@@ -403,6 +403,17 @@ function getcolor(key; colorcode=colorcode)
         colorcode[key] = "rgba($(tmp[1]), $(tmp[2]), $(tmp[3]), 0.5)"
     end
     return colorcode[key]
+end
+
+"""
+    convert_serialdate_datetime(serialdate)
+
+Convert a serial date into a datetime with a second precision
+"""
+function convert_serialdate_datetime(serialdate)
+    (fracDay, fullDay) = modf(serialdate)
+    fullSecond = round(Int, 86400*fracDay)
+    return Dates.DateTime("1899-12-30") + Dates.Day(Int(fullDay)) + Dates.Second(fullSecond)
 end
 
 # Pending retirement ==========================================================
