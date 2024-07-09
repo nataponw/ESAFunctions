@@ -87,28 +87,27 @@ Save `obj` as an object `objname` in a HDF5 `filename`.
 - An array object of basis types
 - A scalar object of basic types
 - Basic types are AbstractString, Real including Bool, and Array.
+- Array of DateTime is supported, but not a singular DateTime.
 """
 function save_objtoh5(filename::String, objname::String, obj)
     (last(filename, 3) != ".h5") && (filename *= ".h5")
-    connFile = HDF5.h5open(filename, "cw")
-    objname ∈ HDF5.keys(connFile) && HDF5.delete_object(connFile, objname)
-    _process_objtoh5(connFile, objname, obj)
-    HDF5.close(connFile)
+    HDF5.h5open(filename, "cw") do conn
+        objname ∈ HDF5.keys(conn) && HDF5.delete_object(conn, objname)
+        _process_objtoh5(conn, objname, obj)
+    end
 end
 
 function _process_objtoh5(conn::Union{HDF5.File, HDF5.Group}, objname::String, obj)
-    if obj isa Union{AbstractString, Real, Array}
-        HDF5.write_dataset(conn, objname, obj)
-    elseif obj isa Dict
+    if obj isa Dict
         connNext = HDF5.create_group(conn, objname)
         HDF5.write_attribute(connNext, "type", "dictionary")
         [_process_objtoh5(connNext, string(key), obj[key]) for key ∈ keys(obj)]
     elseif obj isa DataFrames.DataFrame
         connNext = HDF5.create_group(conn, objname)
         HDF5.write_attribute(connNext, "type", "dataframe")
-        [_process_objtoh5(connNext, string(col), obj[!, col]) for col ∈ propertynames(obj)]
+        [_process_objtoh5(connNext, string(col), obj[!, col]) for col ∈ DataFrames.propertynames(obj)]
     else
-        @warn "Encounter an unsupported type!"
+        HDF5.write_dataset(conn, objname, obj)
     end
 end
 
@@ -122,7 +121,9 @@ See also : [`save_objtoh5`](@ref)
 function load_h5toobj(filename::String, objname::String)
     (last(filename, 3) != ".h5") && (filename *= ".h5")
     conn = HDF5.h5open(filename)
-    return _process_h5toobj(conn[objname])
+    obj = _process_h5toobj(conn[objname])
+    HDF5.close(conn)
+    return obj
 end
 
 """
@@ -133,7 +134,9 @@ Load all objects from a HDF5 `filename`.
 function load_h5toobj(filename::String)
     (last(filename, 3) != ".h5") && (filename *= ".h5")
     conn = HDF5.h5open(filename)
-    return Dict([key => _process_h5toobj(conn[key]) for key ∈ keys(conn)])
+    obj = Dict([key => _process_h5toobj(conn[key]) for key ∈ keys(conn)])
+    HDF5.close(conn)
+    return obj
 end
 
 function _process_h5toobj(conn::Union{HDF5.Group, HDF5.Dataset})
