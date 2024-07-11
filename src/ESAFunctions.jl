@@ -82,7 +82,7 @@ end
 Save `obj` as an object `objname` in a HDF5 `filename`.
 
 # Supported Object
-- A dictionary object whose elements are also of the supported types and whose keys are of String types
+- A dictionary, tuple, or namedtuple object whose elements are also of the supported types and whose keys are of String types
 - A dataframe object whose columns are the supported vectors (1-D Array)
 - An array object of basis types
 - A scalar object of basic types
@@ -95,6 +95,7 @@ function save_objtoh5(filename::String, objname::String, obj)
         objname ∈ HDF5.keys(conn) && HDF5.delete_object(conn, objname)
         _process_objtoh5(conn, objname, obj)
     end
+    return nothing
 end
 
 function _process_objtoh5(conn::Union{HDF5.File, HDF5.Group}, objname::String, obj)
@@ -106,9 +107,18 @@ function _process_objtoh5(conn::Union{HDF5.File, HDF5.Group}, objname::String, o
         connNext = HDF5.create_group(conn, objname)
         HDF5.write_attribute(connNext, "type", "dataframe")
         [_process_objtoh5(connNext, string(col), obj[!, col]) for col ∈ DataFrames.propertynames(obj)]
+    elseif obj isa Tuple
+        connNext = HDF5.create_group(conn, objname)
+        HDF5.write_attribute(connNext, "type", "tuple")
+        [_process_objtoh5(connNext, string(key), obj[key]) for key ∈ keys(obj)]
+    elseif obj isa NamedTuple
+        connNext = HDF5.create_group(conn, objname)
+        HDF5.write_attribute(connNext, "type", "namedtuple")
+        [_process_objtoh5(connNext, string(key), obj[key]) for key ∈ keys(obj)]
     else
         HDF5.write_dataset(conn, objname, obj)
     end
+    return nothing
 end
 
 """
@@ -146,6 +156,10 @@ function _process_h5toobj(conn::Union{HDF5.Group, HDF5.Dataset})
         return DataFrames.DataFrame([col => _process_h5toobj(conn[col]) for col ∈ keys(conn)])
     elseif attr_type == "dictionary"
         return Dict([key => _process_h5toobj(conn[key]) for key ∈ keys(conn)])
+    elseif attr_type == "tuple"
+        return Tuple([_process_h5toobj(conn[key]) for key ∈ keys(conn)])
+    elseif attr_type == "namedtuple"
+        return NamedTuple([Symbol(key) => _process_h5toobj(conn[key]) for key ∈ keys(conn)])
     else
         @warn "Encounter an unsupported type!"
     end
