@@ -1,4 +1,4 @@
-module ESAFunctions
+module NWJuliaUtil
 
 # Import dependencies =========================================================
 import DataFrames, CategoricalArrays
