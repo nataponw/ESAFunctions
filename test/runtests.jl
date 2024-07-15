@@ -1,6 +1,6 @@
-using ESAFunctions
+using NWJuliaUtil
 using Test
 
-@testset "ESAFunctions.jl" begin
+@testset "NWJuliaUtil.jl" begin
     # Write your tests here.
 end
